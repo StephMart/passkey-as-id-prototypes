@@ -1655,12 +1655,14 @@
   let bioTimer = null;
 
   // S0 · Launch screen — auto-avanza a S1 después de 1.3s
+  // _s0t expuesto globalmente para que el grid pueda cancelar/reiniciar los timers
+  window._s0t = [null, null];
   (function() {
     const s0 = document.getElementById('s0');
     if (!s0) return;
-    setTimeout(function() {
+    window._s0t[0] = setTimeout(function() {
       s0.classList.add('exit');
-      setTimeout(function() { s0.style.display = 'none'; }, 520);
+      window._s0t[1] = setTimeout(function() { s0.style.display = 'none'; }, 520);
     }, 1300);
   })();
 

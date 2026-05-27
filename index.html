@@ -574,6 +574,58 @@
       protoList.appendChild(card);
     });
 
+    // Resetea el prototipo embebido a su pantalla inicial (amarilla)
+    // · Happy path / Multicuenta: muestra S0 (overlay amarillo) y reinicia su timer
+    // · Sin-passkey: cancela startSplash, vuelve a S1 (amarillo)
+    function resetIframeToStart() {
+      try {
+        const win = iframe.contentWindow;
+        const doc = iframe.contentDocument || win.document;
+
+        // ── Sin-passkey: cancelar auto-advance y deshabilitar startSplash ──
+        if (typeof win.splashTimer !== 'undefined') {
+          clearTimeout(win.splashTimer);
+          win.splashTimer = null;
+        }
+        if (typeof win.startSplash === 'function') {
+          win.startSplash = function() {};
+        }
+
+        // ── Volver a S1 si no estamos ahí ──
+        if (typeof win.goTo === 'function') {
+          const scrNum = (typeof win.currentScreen !== 'undefined') ? win.currentScreen
+                       : (typeof win.cur !== 'undefined')           ? win.cur
+                       : 1;
+          if (scrNum > 1) win.goTo(1);
+        }
+
+        // ── Happy path / Multicuenta: restaurar S0 (amarillo) ──
+        const s0 = doc && doc.getElementById('s0');
+        if (s0) {
+          // Cancelar timers pendientes de fade
+          const t = win._s0t || [null, null];
+          clearTimeout(t[0]);
+          clearTimeout(t[1]);
+          win._s0t = [null, null];
+
+          // Hacer visible S0 sin transición
+          s0.style.display = '';
+          s0.style.transition = 'none';
+          s0.classList.remove('exit');
+          s0.style.opacity = '1';
+
+          // Rehabilitar transición y reiniciar el auto-fade (1.3s → S1)
+          setTimeout(() => {
+            s0.style.transition = '';
+            win._s0t[0] = setTimeout(() => {
+              s0.classList.add('exit');
+              win._s0t[1] = setTimeout(() => { s0.style.display = 'none'; }, 520);
+            }, 1300);
+          }, 50);
+        }
+      } catch(e) {}
+    }
+
     function selectProto(index) {
       if (index === currentIndex && !scaler.classList.contains('is-loading')) return;
       currentIndex = index;
@@ -587,29 +639,29 @@
       const p = PROTOTYPES[index];
       breadcrumb.innerHTML = `${p.breadcrumbLeft} · <strong>${p.breadcrumbRight}</strong>`;
 
-      // Load iframe
+      // Load iframe y resetear a pantalla inicial al terminar de cargar
       scaler.classList.add('is-loading');
-      iframe.onload = () => scaler.classList.remove('is-loading');
+      iframe.onload = () => {
+        scaler.classList.remove('is-loading');
+        resizePhone();
+        resetIframeToStart();
+      };
       iframe.src = p.src;
     }
 
     function restartProto() {
-      try {
-        const win = iframe.contentWindow;
-        if (win && win.goTo) { win.goTo(1); }
-        else { iframe.src = iframe.src; }
-      } catch(e) {
-        iframe.src = iframe.src;
-      }
-      // Reapply scale after reload
-      iframe.onload = () => { scaler.classList.remove('is-loading'); resizePhone(); };
+      resetIframeToStart();
     }
 
     function prevScreen() {
       try {
         const win = iframe.contentWindow;
-        if (win && win.currentScreen && win.goTo) {
-          const target = win.currentScreen - 1;
+        // Soporta tanto "currentScreen" (sin-passkey) como "cur" (happy path / multicuenta)
+        const scrNum = (typeof win.currentScreen !== 'undefined') ? win.currentScreen
+                     : (typeof win.cur !== 'undefined')           ? win.cur
+                     : null;
+        if (scrNum && win.goTo) {
+          const target = scrNum - 1;
           if (target >= 1) win.goTo(target);
         }
       } catch(e) {}
@@ -618,9 +670,13 @@
     function nextScreen() {
       try {
         const win = iframe.contentWindow;
-        if (win && win.currentScreen && win.goTo && win.TOTAL) {
-          const target = win.currentScreen + 1;
-          if (target <= win.TOTAL) win.goTo(target);
+        const scrNum = (typeof win.currentScreen !== 'undefined') ? win.currentScreen
+                     : (typeof win.cur !== 'undefined')           ? win.cur
+                     : null;
+        const total = (typeof win.TOTAL !== 'undefined') ? win.TOTAL : 5;
+        if (scrNum && win.goTo) {
+          const target = scrNum + 1;
+          if (target <= total) win.goTo(target);
         }
       } catch(e) {}
     }
