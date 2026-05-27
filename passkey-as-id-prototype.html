@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Passkey as ID — Prototipo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── RESET ── */
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    body {
+      background: #0d0d0d;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 32px 16px 72px;
+    }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+    /* ── ANDES TOKENS (valores reales del Figma) ── */
+    :root {
+      --color-bg-primary:          #ffffff;
+      --color-text-primary:        #282834;
+      --color-text-secondary:      rgba(0,0,0,0.55);
+      --color-text-link:           #4850e5;
+      --color-brand-yellow:        #ffe600;
+      --color-brand-yellow-quiet:  #fff394;
+      --color-accent:              #4850e5;
+      --color-accent-hover:        #3b42c4;
+      --color-green-loud:          #1f8923;
+      --color-green-fill:          #defade;
+      --color-teal:                #42d6c1;
+      --color-icon-primary:        #282834;
+      --color-surface-idle:        #ffffff;
+      --color-overlay:             rgba(40,40,52,0.6);
+      --color-biometric-card:      #383838;
+      --color-border:              rgba(0,0,0,0.15);
+      --color-bg-quiet:            #f0f0f7;
+      --color-tab-inactive:        #252537;
+
+      --shadow-card:    0 8px 12px 0 rgba(40,40,52,0.1);
+      --shadow-sheet:   0 -8px 6px rgba(37,37,55,0.1);
+      --shadow-tab-bar: 0 -8px 6px rgba(37,37,55,0.1);
+
+      --r-sm:   8px;
+      --r-md:   12px;
+      --r-lg:   16px;
+      --r-xl:   20px;
+      --r-full: 9999px;
+
+      /* text/body sizes */
+      --text-xxs: 10px;
+      --text-xs:  12px;
+      --text-sm:  14px;
+      --text-md:  16px;
+      --text-lg:  18px;
+      --text-xl:  24px;
+      --text-2xl: 28px;
+    }
+
+    /* ── FLOW LABEL ── */
+    .flow-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.38);
+      letter-spacing: 0.3px;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+    .flow-label strong { color: rgba(255,255,255,0.8); }
+
+    /* ── PHONE SHELL ── */
+    .phone {
+      width: 360px;
+      height: 800px;
+      border-radius: 44px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 0 0 1.5px rgba(255,255,255,0.07), 0 40px 100px rgba(0,0,0,0.85);
+      background: #000;
+      flex-shrink: 0;
+    }
+
+    /* ── SCREEN ── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      width: 360px;
+      height: 800px;
+      opacity: 0;
+      transform: translateY(18px);
+      pointer-events: none;
+      transition: opacity 0.38s cubic-bezier(0.4, 0, 0.2, 1),
+                  transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      background: var(--color-bg-primary);
+    }
+    .screen.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: all;
+    }
+
+    /* ── NAVIGATION DOTS ── */
+    .nav-dots {
+      display: flex;
+      gap: 6px;
+      margin-top: 20px;
+      align-items: center;
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: var(--r-full);
+      background: rgba(255,255,255,0.2);
+      cursor: pointer;
+      transition: background .2s, width .2s;
+    }
+    .dot.active { background: #fff; width: 18px; }
+
+    /* ── STATUS BAR ── */
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 10px 24px 6px;
+      height: 52px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .status-time {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--color-text-primary);
+      letter-spacing: 0.14px;
+      line-height: 20px;
+    }
+    .status-icons {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-icons img { display: block; }
+    .camera-notch {
+      position: absolute;
+      top: 18px; left: 50%; transform: translateX(-50%);
+      width: 24px; height: 24px;
+    }
+
+    /* ── ICON BUTTON (header) ── */
+    .icon-btn {
+      width: 40px; height: 40px;
+      background: var(--color-bg-quiet);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .icon-btn:active { background: #e0e0ee; }
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    /* ═══════════════════════════════════════════
+       S0 · LAUNCH SCREEN (auto-avanza a S1)
+    ════════════════════════════════════════════ */
+    #s0 {
+      position: absolute;
+      inset: 0;
+      width: 360px;
+      height: 800px;
+      z-index: 20;
+      opacity: 1;
+      pointer-events: all;
+      transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      background: #FFE600;
+    }
+    #s0.exit {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .s0-img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ═══════════════════════════════════════════
+       S1 · SPLASH
+    ════════════════════════════════════════════ */
+    #s1 { background: #000; }
+
+    /* Foto de fondo con overlays de gradiente (sin UI) */
+    .splash-bg {
+      position: absolute;
+      inset: 0; width: 100%; height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    /* Gradiente superior para contraste del logo */
+    #s1::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      background: linear-gradient(to bottom,
+        rgba(0,0,0,0.72) 0%,
+        rgba(0,0,0,0.42) 22%,
+        rgba(0,0,0,0.12) 42%,
+        transparent 58%
+      );
+      pointer-events: none;
+    }
+
+    /* Logo MP — posición exacta del Figma: top 48px, left 18px, 106px ancho */
+    .splash-logo-img {
+      position: absolute;
+      top: 48px;
+      left: 18px;
+      width: 106px;
+      height: auto;
+      z-index: 2;
+      filter: drop-shadow(0 0 8px rgba(0,0,0,0.7)) drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+    }
+
+    /* Título — Figma: y 541px, font 22px semibold, blanco */
+    .splash-title-text {
+      position: absolute;
+      top: 541px;
+      left: 18px;
+      right: 18px;
+      font-size: 20px;
+      font-weight: 600;
+      color: #fff;
+      line-height: 1.3;
+      margin: 0;
+      z-index: 2;
+    }
+
+    /* Dots de carrusel — Figma: y 618px, centrados */
+    .splash-dots-wrap {
+      position: absolute;
+      top: 618px;
+      left: 0; right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+      z-index: 2;
+    }
+    .sdot {
+      width: 6px; height: 6px;
+      border-radius: 100px;
+      background: rgba(255,255,255,0.45);
+    }
+    .sdot.active {
+      width: 22px;
+      background: #fff;
+    }
+
+    /* Bloque de botones — Figma: y 670px, márgenes 18px */
+    .splash-btns-wrap {
+      position: absolute;
+      top: 670px;
+      left: 18px; right: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      z-index: 2;
+    }
+    .splash-btn-primary {
+      width: 100%;
+      height: 41px;
+      background: #434CE4;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .splash-btn-primary:active { opacity: 0.85; }
+
+    .splash-btn-secondary {
+      width: 100%;
+      height: 41px;
+      background: #E9F1FF;
+      color: #434CE4;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .splash-btn-secondary:active { opacity: 0.8; }
+
+    /* ═══════════════════════════════════════════
+       S2 · LOGIN  (base compartida)
+    ════════════════════════════════════════════ */
+    .login-base {
+      display: flex;
+      flex-direction: column;
+      height: 800px;
+      background: var(--color-bg-primary);
+      position: relative;
+    }
+
+    .header-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 12px 4px;
+      flex-shrink: 0;
+    }
+
+    .screen-title {
+      font-size: var(--text-xl);
+      font-weight: 700;
+      color: var(--color-text-primary);
+      padding: 0 20px 24px;
+      line-height: 1.25;
+      flex-shrink: 0;
+    }
+
+    /* Textfield */
+    .textfield-wrap {
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .textfield-label {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--color-text-primary);
+      margin-bottom: 6px;
+      display: block;
+    }
+    .textfield-input {
+      width: 100%;
+      height: 56px;
+      border: 1.5px solid var(--color-border);
+      border-radius: var(--r-sm);
+      padding: 0 16px;
+      font-size: var(--text-md);
+      color: var(--color-text-primary);
+      background: #fff;
+      outline: none;
+    }
+    .textfield-input:focus { border-color: var(--color-accent); }
+
+    /* Buttons section */
+    .login-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    /* Continuar button (Andes loud) */
+    .btn-loud {
+      width: 100%;
+      height: 56px;
+      background: var(--color-accent);
+      color: #fff;
+      font-size: var(--text-md);
+      font-weight: 600;
+      border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px;
+      transition: background .15s;
+    }
+    .btn-loud:active { background: var(--color-accent-hover); }
+
+    /* Divider "o" */
+    .divider-o {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .divider-o hr { flex: 1; border: none; border-top: 1px solid rgba(0,0,0,0.12); }
+    .divider-o span {
+      font-size: var(--text-sm);
+      color: rgba(0,0,0,0.9);
+      font-weight: 400;
+    }
+
+    /* Social buttons group */
+    .social-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+    .btn-outline {
+      width: 100%;
+      height: 56px;
+      background: #fff;
+      border: 1.5px solid rgba(0,0,0,0.15);
+      border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      gap: 10px;
+      font-size: var(--text-md);
+      font-weight: 500;
+      color: var(--color-text-primary);
+      transition: background .15s;
+    }
+    .btn-outline:active { background: #f5f5f5; }
+    .btn-outline svg, .btn-outline img { width: 22px; height: 22px; flex-shrink: 0; }
+
+    /* Footer help links */
+    .login-footer {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .footer-links {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 16px 16px;
+    }
+    .btn-mute {
+      width: 100%;
+      height: 48px;
+      background: none;
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px;
+      font-size: var(--text-sm);
+      font-weight: 400;
+      color: var(--color-text-link);
+    }
+    .btn-mute svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .btn-text-quiet {
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+      background: none;
+      height: 36px;
+      display: flex; align-items: center;
+    }
+
+    /* Home indicator */
+    .home-indicator {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 0 8px;
+      background: inherit;
+    }
+    .home-bar {
+      width: 108px; height: 4px;
+      background: var(--color-icon-primary);
+      border-radius: var(--r-full);
+      opacity: 0.15;
+    }
+
+    /* ═══════════════════════════════════════════
+       S3 · LOGIN + BOTTOM SHEET
+    ════════════════════════════════════════════ */
+    .dimmer {
+      position: absolute;
+      inset: 0;
+      background: var(--color-overlay);
+      z-index: 1;
+    }
+
+    .bottom-sheet {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-radius: var(--r-lg) var(--r-lg) 0 0;
+      box-shadow: var(--shadow-sheet);
+      z-index: 2;
+      overflow: hidden;
+    }
+    .bs-drag-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 12px 0 4px;
+    }
+    .bs-drag-indicator {
+      width: 32px; height: 4px;
+      background: rgba(0,0,0,0.2);
+      border-radius: var(--r-full);
+    }
+    .bs-header {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 8px 16px 0;
+    }
+    .bs-header-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 2px;
+    }
+    .bs-title {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: var(--color-text-primary);
+      line-height: 1.3;
+    }
+    .bs-close {
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: -2px;
+      border-radius: var(--r-full);
+      transition: background .15s;
+    }
+    .bs-close:active { background: var(--color-bg-quiet); }
+    .bs-close svg { width: 18px; height: 18px; }
+    .bs-subtitle {
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+      line-height: 18px;
+      margin-bottom: 12px;
+    }
+
+    /* Account row */
+    .account-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-top: 1px solid rgba(0,0,0,0.08);
+      cursor: pointer;
+      transition: background .15s ease;
+    }
+    .account-row:active { background: rgba(72, 80, 229, 0.12); }
+    .account-avatar {
+      width: 40px; height: 40px;
+      border-radius: var(--r-full);
+      overflow: hidden;
+      flex-shrink: 0;
+      background: #ddd;
+    }
+    .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .account-info { flex: 1; min-width: 0; }
+    .account-name {
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--color-text-primary);
+      line-height: 20px;
+    }
+    .account-email {
+      font-size: var(--text-sm);
+      color: var(--color-text-secondary);
+      line-height: 18px;
+    }
+    .account-chevron {
+      flex-shrink: 0;
+      color: var(--color-accent);
+    }
+    .account-chevron svg { width: 20px; height: 20px; }
+
+    /* ═══════════════════════════════════════════
+       S4 · BIOMETRIC PROMPT
+    ════════════════════════════════════════════ */
+    .biometric-card {
+      position: absolute;
+      bottom: 48px;
+      left: 8px; right: 8px;
+      background: var(--color-biometric-card);
+      border-radius: var(--r-lg);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      z-index: 2;
+    }
+    .bio-title {
+      font-size: var(--text-lg);
+      font-weight: 400;
+      color: #fff;
+      text-align: center;
+      line-height: normal;
+    }
+    .bio-icon-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .bio-icon {
+      font-size: 40px;
+      color: #888;
+      line-height: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 64px;
+      height: 64px;
+    }
+
+    /* ── ANIMACIÓN HUELLA ── */
+
+    /* 1 · Ripple rings */
+    .bio-ripple {
+      position: absolute;
+      width: 60px; height: 60px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(66, 214, 193, 0.65);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.85);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes bioRipple {
+      0%   { transform: translate(-50%,-50%) scale(0.85); opacity: 0.7; }
+      100% { transform: translate(-50%,-50%) scale(2.6);  opacity: 0; }
+    }
+
+    #s4.active .bio-ripple:nth-child(1) {
+      animation: bioRipple 1.8s cubic-bezier(0.2,0.6,0.4,1) 0.05s forwards;
+    }
+    #s4.active .bio-ripple:nth-child(2) {
+      animation: bioRipple 1.8s cubic-bezier(0.2,0.6,0.4,1) 0.55s forwards;
+    }
+    #s4.active .bio-ripple:nth-child(3) {
+      animation: bioRipple 1.8s cubic-bezier(0.2,0.6,0.4,1) 1.05s forwards;
+    }
+
+    /* 2 · Scan line que barre la huella */
+    .bio-scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      border-radius: 1px;
+      background: linear-gradient(90deg, transparent 0%, #42d6c1 30%, #7eeee5 50%, #42d6c1 70%, transparent 100%);
+      top: 0;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    @keyframes bioScanLine {
+      0%   { top: 2px;   opacity: 0; }
+      8%   { opacity: 1; }
+      92%  { opacity: 1; }
+      100% { top: calc(100% - 4px); opacity: 0; }
+    }
+
+    #s4.active .bio-scan-line {
+      animation: bioScanLine 1.5s ease-in-out 0.2s forwards;
+    }
+
+    /* 3 · Stroke color + glow: #888 → teal */
+    @keyframes bioStroke {
+      0%   { stroke: #888;    filter: none; }
+      50%  { stroke: #5ee8d8; filter: drop-shadow(0 0 4px rgba(66,214,193,0.45)); }
+      100% { stroke: #42d6c1; filter: drop-shadow(0 0 8px rgba(66,214,193,0.7)); }
+    }
+
+    #s4.active .bio-icon > svg {
+      animation: bioStroke 1.8s ease-in-out 0.1s forwards;
+    }
+
+    /* S3 → S4: la card sube desde abajo, suave y con rebote leve */
+    @keyframes bioCardIn {
+      from { transform: translateY(64px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+    #s4.active .biometric-card {
+      animation: bioCardIn 0.46s cubic-bezier(0.34, 1.06, 0.64, 1) both;
+    }
+
+    .bio-hint {
+      font-size: var(--text-xs);
+      color: #fff;
+      text-align: center;
+      line-height: normal;
+    }
+    .bio-cancel {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: none;
+      cursor: pointer;
+    }
+
+    /* ═══════════════════════════════════════════
+       S5 · HOME
+    ════════════════════════════════════════════ */
+    #s5 { background: var(--color-brand-yellow); }
+
+    /* Nav bar */
+    .home-navbar {
+      background: var(--color-brand-yellow);
+      flex-shrink: 0;
+    }
+    .home-status {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 8px 16px 0;
+      gap: 4px;
+      height: 32px;
+    }
+    .home-status-time {
+      font-size: var(--text-sm);
+      font-weight: 500;
+      color: var(--color-text-primary);
+      margin-right: auto;
+      padding-left: 8px;
+    }
+    .home-status-icons {
+      display: flex; align-items: center; gap: 4px;
+    }
+    .home-status-icons img { display: block; width: 16px; height: 16px; }
+    .home-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 16px 10px;
+    }
+    .home-avatar {
+      width: 32px; height: 32px;
+      border-radius: var(--r-full);
+      overflow: hidden;
+      flex-shrink: 0;
+      background: #ccc;
+    }
+    .home-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .home-greeting {
+      flex: 1;
+      font-size: var(--text-md);
+      font-weight: 600;
+      color: var(--color-text-primary);
+      line-height: 20px;
+    }
+    .home-action-btn {
+      width: 40px; height: 40px;
+      background: var(--color-brand-yellow-quiet);
+      border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background .15s;
+    }
+    .home-action-btn img { width: 20px; height: 20px; }
+
+    /* Banking section */
+    .home-content {
+      flex: 1;
+      overflow-y: auto;
+      background: #f0f0f7;
+    }
+    .home-content::-webkit-scrollbar { display: none; }
+
+    .banking-section {
+      padding: 0 16px 16px;
+      background: var(--color-brand-yellow);
+    }
+
+    .bank-tabs {
+      display: flex;
+      gap: 0;
+      align-items: flex-end;
+    }
+    .bank-tab {
+      padding: 10px 12px;
+      font-size: var(--text-xs);
+      font-weight: 400;
+      color: var(--color-text-primary);
+      cursor: pointer;
+      line-height: 16px;
+      border-radius: 20px 20px 0 0;
+    }
+    .bank-tab.active {
+      background: #fff;
+      font-weight: 700;
+      box-shadow: 0 8px 6px rgba(40,40,52,0.1);
+    }
+
+    .bank-card {
+      background: #fff;
+      border-radius: 0 var(--r-xl) var(--r-xl) var(--r-xl);
+      padding: 16px;
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .bank-balance-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .bank-balance-left {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .bank-amount {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-text-primary);
+      line-height: 34px;
+      display: flex; align-items: flex-start;
+    }
+    .bank-amount-currency { font-size: 28px; font-weight: 700; }
+    .bank-amount-sup {
+      font-size: var(--text-md);
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    .bank-eye img { width: 24px; height: 24px; opacity: 0.6; }
+
+    .bank-extrato {
+      display: flex; align-items: center; gap: 4px;
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--color-accent);
+    }
+    .bank-extrato img { width: 16px; height: 16px; }
+
+    .bank-cdi {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      color: var(--color-green-loud);
+      line-height: 16px;
+    }
+
+    .bank-banner {
+      background: var(--color-green-fill);
+      border-radius: var(--r-xl);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .bank-banner-header {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .bank-banner-title {
+      font-size: var(--text-sm);
+      font-weight: 700;
+      color: var(--color-text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 232px;
+    }
+    .bank-banner-chevron img { width: 24px; height: 24px; opacity: 0.6; }
+    .bank-banner-body {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .bank-banner-text {
+      flex: 1;
+      font-size: var(--text-xs);
+      color: var(--color-text-primary);
+      line-height: 16px;
+    }
+    .bank-banner-text strong { font-weight: 700; color: var(--color-green-loud); }
+    .btn-deposit {
+      height: 36px;
+      background: var(--color-accent);
+      color: #fff;
+      font-size: var(--text-sm);
+      font-weight: 600;
+      border-radius: var(--r-sm);
+      padding: 0 14px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* Card section */
+    .home-section {
+      background: #fff;
+      margin: 12px 16px 0;
+      border-radius: var(--r-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+    .home-section-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 16px 16px 8px;
+    }
+    .home-section-title {
+      font-size: var(--text-md);
+      font-weight: 700;
+      color: var(--color-text-primary);
+    }
+    .credit-banner {
+      margin: 0 16px 16px;
+      background: #1a1a2e;
+      border-radius: var(--r-lg);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .credit-banner-title {
+      font-size: var(--text-lg);
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .credit-banner-sub {
+      font-size: var(--text-xs);
+      color: rgba(255,255,255,0.7);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-pedir {
+      align-self: flex-start;
+      height: 36px;
+      background: var(--color-accent);
+      color: #fff;
+      font-size: var(--text-sm);
+      font-weight: 600;
+      border-radius: var(--r-sm);
+      padding: 0 14px;
+    }
+
+    /* Benefícios */
+    .benefits-section {
+      padding: 16px;
+      background: #fff;
+      margin: 12px 16px 0;
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-card);
+    }
+    .benefits-title {
+      font-size: var(--text-md);
+      font-weight: 700;
+      color: var(--color-text-primary);
+      margin-bottom: 4px;
+    }
+    .benefits-link {
+      font-size: var(--text-sm);
+      font-weight: 600;
+      color: var(--color-accent);
+      display: flex; align-items: center; gap: 4px;
+    }
+
+    /* Tab bar */
+    .tab-bar-wrap {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-radius: var(--r-lg) var(--r-lg) 0 0;
+      box-shadow: var(--shadow-tab-bar);
+      z-index: 10;
+    }
+    .tab-bar {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      padding: 0 16px;
+    }
+    .tab-indicator-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 16px 0;
+    }
+    .tab-indicator-slot {
+      width: 64px;
+      display: flex; justify-content: center;
+    }
+    .tab-indicator {
+      width: 32px; height: 3px;
+      background: var(--color-accent);
+      border-radius: 24px;
+      box-shadow: 0 1px 4px rgba(72,80,229,0.6);
+    }
+    .tab-indicator.hidden { opacity: 0; }
+
+    .tab-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      width: 64px;
+      padding: 0 0 4px;
+      cursor: pointer;
+      position: relative;
+    }
+    .tab-item-pix {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      width: 64px;
+      padding: 0 0 4px;
+      cursor: pointer;
+      height: 48px;
+    }
+    .tab-icon { width: 24px; height: 24px; position: relative; }
+    .tab-icon img { width: 100%; height: 100%; display: block; }
+    .tab-label {
+      font-size: var(--text-xxs);
+      font-weight: 500;
+      color: var(--color-tab-inactive);
+      line-height: 12px;
+      text-align: center;
+    }
+    .tab-label.active {
+      font-weight: 600;
+      color: var(--color-accent);
+    }
+    .pix-btn {
+      position: absolute;
+      top: -33px;
+      left: 50%; transform: translateX(-50%);
+      width: 56px; height: 56px;
+      background: var(--color-teal);
+      border-radius: var(--r-full);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 12px rgba(66,214,193,0.7);
+      overflow: hidden;
+    }
+    .pix-btn img { width: 32px; height: 32px; }
+
+    .home-indicator-bar {
+      display: flex; justify-content: center;
+      padding: 20px 0 8px;
+    }
+    .home-indicator-bar div {
+      width: 144px; height: 5px;
+      background: #000;
+      border-radius: 100px;
+      opacity: 0.2;
+    }
+
+    /* MC Logo SVG icons */
+    .mc-logo { display: flex; gap: 2px; flex-shrink: 0; }
+
+    /* ── BOTTOM SHEET OVERLAY (en S2) ── */
+    /* El .bs-overlay solo posiciona y anima el bottom-sheet.
+       El dimmer es hermano directo de la pantalla (igual que en S4). */
+    .bs-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 10;
+    }
+    .bs-overlay .bottom-sheet {
+      transform: translateY(100%);
+    }
+
+    /* Dimmer de S2: misma regla base que S4, con fade in/out vía transition */
+    #s2 .dimmer {
+      opacity: 0;
+      pointer-events: none;   /* bs-overlay maneja los eventos encima */
+      transition: opacity 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #s2 .dimmer.visible {
+      opacity: 1;
+    }
+
+    @keyframes slideUpSheet {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    @keyframes slideDownSheet {
+      from { transform: translateY(0); }
+      to   { transform: translateY(100%); }
+    }
+
+    .bs-overlay.visible,
+    .bs-overlay.hiding {
+      display: block;   /* visible durante entrada Y salida */
+    }
+    .bs-overlay.visible .bottom-sheet {
+      /* Curva con leve spring: sube rápido y asienta suave */
+      animation: slideUpSheet 0.5s cubic-bezier(0.34, 1.06, 0.64, 1) forwards;
+    }
+    .bs-overlay.hiding .bottom-sheet {
+      /* Salida rápida: acelera hacia abajo */
+      animation: slideDownSheet 0.32s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+    }
+
+    /* ── SHARED BUTTON STYLES ── */
+    .btn-block { display: block; width: 100%; }
+  </style>
+</head>
+<body>
+
+
+<div class="phone">
+
+  <!-- ══════════════════════════════════════
+       S0 · LAUNCH SCREEN (auto-avanza a S1)
+  ═══════════════════════════════════════ -->
+  <div id="s0">
+    <img class="s0-img" src="data:image/png;base64,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A4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAowg0ABhFoAHAKAINAEYRaAAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcAoAg0ARhFoADCKQAOAUQQaAIwi0ABgFIEGAKMINAAYRaABwCgCDQBGEWgAMIpAA4BRBBoAjCLQAGAUgQYAo+JCv/fdS6Vf/F5qahH6gboa6ZMfky67UOjnIsEyBUK/dfa3XZz/IPRDF3zVffP9qtCPEeh+rn4yK+f+yq+kG2cL/RgzaAAwikD3c2efLvRTnzxB6OcYcWwF/Bz6mr8y6ugv/Gjjy59h/rw1INAAYBQjDgAwikADgFEEGgCMItAAYBSBBgCjCDQAGEWgAcCo/w/LjxxYJQUkpAAAAABJRU5ErkJggg==" alt="">
+  </div>
+
+  <!-- ══════════════════════════════════════
+       S1 · SPLASH
+  ═══════════════════════════════════════ -->
+  <div class="screen active" id="s1">
+
+    <!-- Fondo: foto + gradientes (sin UI) — nodo 152:27226 -->
+    <img class="splash-bg"
+      src="https://www.figma.com/api/mcp/asset/f210e8a2-c707-4448-9330-58a9b3cd74a7"
+      alt="">
+
+    <!-- Logo Mercado Pago — SVG inline exportado desde nodo I152:27227;46:25597 -->
+    <svg class="splash-logo-img" width="106" height="27" viewBox="0 0 128 33" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Mercado Pago">
+<g clip-path="url(#clip0_mp_logo)">
+<path d="M125.778 4.66916C124.937 3.6125 123.659 3.08984 121.949 3.08984C120.239 3.08984 118.961 3.61818 118.12 4.66916C117.279 5.72015 116.859 6.96997 116.859 8.407C116.859 9.86728 117.279 11.1171 118.12 12.1567C118.961 13.1964 120.239 13.7133 121.949 13.7133C123.665 13.7133 124.937 13.1907 125.778 12.1567C126.619 11.1171 127.039 9.86728 127.039 8.40726C127.039 6.96997 126.619 5.72583 125.778 4.66916ZM123.693 10.7194C123.284 11.2591 122.699 11.5318 121.938 11.5318C121.176 11.5318 120.591 11.2591 120.177 10.7194C119.768 10.1797 119.563 9.40712 119.563 8.40726C119.563 7.40741 119.768 6.64047 120.177 6.10078C120.586 5.56108 121.176 5.29407 121.938 5.29407C122.705 5.29407 123.284 5.56676 123.693 6.10078C124.102 6.64047 124.307 7.40741 124.307 8.40726C124.301 9.40712 124.096 10.1797 123.693 10.7194Z" fill="white"/>
+<path d="M104.275 3.7885C103.423 3.35675 102.446 3.14087 101.35 3.14087C99.6623 3.14087 98.4693 3.58399 97.7762 4.45886C97.3388 5.02128 97.0945 5.74277 97.0377 6.61764H99.56C99.6225 6.23134 99.7475 5.92456 99.9293 5.69732C100.191 5.39055 100.634 5.23716 101.259 5.23716C101.815 5.23716 102.241 5.31669 102.531 5.47008C102.815 5.62347 102.963 5.90752 102.963 6.31655C102.963 6.65173 102.775 6.90169 102.401 7.06076C102.19 7.15166 101.844 7.23119 101.355 7.288L100.458 7.39594C99.4407 7.5266 98.6681 7.7368 98.1455 8.03789C97.1911 8.58895 96.7139 9.47519 96.7139 10.708C96.7139 11.6567 97.0093 12.3895 97.6058 12.9065C98.1966 13.4235 98.9522 13.6394 99.8611 13.6848C105.571 13.9405 105.502 10.6796 105.554 9.99784V6.24838C105.554 5.04401 105.127 4.22594 104.275 3.7885ZM102.946 9.48655C102.929 10.3614 102.679 10.9636 102.196 11.2931C101.713 11.6226 101.19 11.7874 100.617 11.7874C100.253 11.7874 99.952 11.6851 99.6964 11.4863C99.4464 11.2874 99.3214 10.9636 99.3214 10.5148C99.3214 10.0149 99.526 9.64562 99.9407 9.40702C100.185 9.26499 100.583 9.14569 101.145 9.04911L101.742 8.94117C102.037 8.88436 102.27 8.82187 102.44 8.75938C102.611 8.69689 102.781 8.61168 102.946 8.50942V9.48655Z" fill="white"/>
+<path d="M91.2593 5.3733C91.9127 5.3733 92.3899 5.57781 92.7023 5.97548C92.9125 6.2709 93.0489 6.61176 93.1 6.98102H95.9121C95.7587 5.56077 95.2588 4.56659 94.4237 4.00986C93.5829 3.45312 92.5035 3.16907 91.1855 3.16907C89.6346 3.16907 88.4188 3.64627 87.5383 4.595C86.6577 5.54941 86.2146 6.87876 86.2146 8.58875C86.2146 10.1056 86.6123 11.3384 87.4133 12.2871C88.2086 13.2358 89.4585 13.713 91.1457 13.713C92.8387 13.713 94.1169 13.1449 94.9804 12.003C95.5201 11.2986 95.8212 10.5487 95.8893 9.75335H93.0829C93.0261 10.276 92.8614 10.7078 92.5887 11.0373C92.316 11.3668 91.8615 11.5315 91.2196 11.5315C90.3106 11.5315 89.6914 11.1168 89.3619 10.2874C89.1801 9.84425 89.0892 9.2591 89.0892 8.52625C89.0892 7.75932 89.1801 7.14577 89.3619 6.67993C89.6971 5.81073 90.3333 5.3733 91.2593 5.3733Z" fill="white"/>
+<path d="M85.3692 5.8221C85.4999 5.82778 85.6419 5.83914 85.8123 5.86186V3.19179C85.6987 3.18043 85.6192 3.18043 85.5851 3.17475C85.551 3.16907 85.5112 3.16907 85.4601 3.16907C79.6768 3.16907 80.0177 8.28765 80.0177 8.28765V13.4858H82.6423V8.60579C82.6423 7.80477 82.7446 7.21394 82.9434 6.82763C83.3013 6.14591 84.0058 5.80505 85.0568 5.80505C85.1363 5.81642 85.2385 5.81642 85.3692 5.8221Z" fill="white"/>
+<path d="M70.4329 12.5143C71.4441 13.3324 72.6201 13.7414 73.9438 13.7414C75.5515 13.7414 76.8013 13.2585 77.6932 12.2871C78.1761 11.7758 78.4772 11.2702 78.6022 10.7759H75.8185C75.7106 10.935 75.5913 11.0657 75.4606 11.1736C75.0913 11.4804 74.5857 11.5713 73.9949 11.5713C73.4325 11.5713 72.995 11.4861 72.5974 11.2361C71.9441 10.8327 71.5748 10.151 71.535 9.15117H78.7953C78.8067 8.28765 78.7783 7.62866 78.7101 7.17418C78.5908 6.39588 78.3238 5.7028 77.9148 5.11197C77.4603 4.44161 76.8865 3.94737 76.1934 3.63491C75.5004 3.32814 74.7164 3.16907 73.8529 3.16907C72.3929 3.16907 71.2055 3.62923 70.2852 4.54955C69.3706 5.46987 68.9104 6.79355 68.9104 8.52057C68.9104 10.3669 69.416 11.6963 70.4329 12.5143ZM72.2906 5.89027C72.6599 5.50964 73.1768 5.32217 73.8472 5.32217C74.4607 5.32217 74.9777 5.49828 75.3924 5.86186C75.8071 6.21977 76.0401 6.7481 76.0855 7.4355H71.5975C71.6884 6.78219 71.927 6.2709 72.2906 5.89027Z" fill="white"/>
+<path d="M65.4568 7.45843V13.4917H67.8542V7.51524C67.8542 4.94743 66.3089 3.14087 63.6957 3.14087C62.4799 3.14087 61.4233 3.67488 60.7188 4.53272C60.0485 3.67488 59.0088 3.14087 57.7363 3.14087C55.1742 3.14087 53.521 5.02128 53.521 7.51524V13.4917H55.9184V7.45843C55.9184 6.35632 56.6626 5.59506 57.7363 5.59506C59.3156 5.59506 59.4804 6.90738 59.4804 7.45843V13.4917H61.8778V7.45843C61.8778 6.35632 62.639 5.59506 63.6957 5.59506C65.275 5.59506 65.4568 6.90169 65.4568 7.45843Z" fill="white"/>
+<path d="M113.427 1.86281L113.421 4.67491C113.131 4.20338 112.751 3.83412 112.279 3.57279C111.813 3.30578 111.274 3.17512 110.671 3.17512C109.359 3.17512 108.314 3.66369 107.53 4.63514C106.746 5.61227 106.354 7.01548 106.354 8.71978C106.354 10.1968 106.751 11.4069 107.547 12.3499C108.342 13.2873 109.904 13.702 111.291 13.702C116.125 13.702 116.068 9.56057 116.068 9.56057V0.0221641C116.068 0.0221641 113.427 -0.261886 113.427 1.86281ZM112.921 10.7422C112.54 11.2933 111.972 11.566 111.239 11.566C110.501 11.566 109.95 11.2876 109.586 10.7365C109.223 10.1855 109.041 9.37878 109.041 8.45846C109.041 7.60631 109.217 6.8905 109.575 6.31104C109.933 5.73725 110.49 5.44752 111.251 5.44752C111.751 5.44752 112.188 5.60659 112.569 5.92473C113.182 6.44738 113.495 7.39043 113.495 8.61184C113.5 9.48104 113.307 10.1912 112.921 10.7422Z" fill="white"/>
+<path d="M59.0657 17.5025C56.9069 17.4003 55.8104 17.9172 55.1003 18.4569C54.1175 19.2068 53.521 20.3146 53.521 22.0871V31.2051H54.7935C55.1344 31.2051 55.4753 31.0858 55.7252 30.8586C56.0036 30.5972 56.1456 30.2848 56.1456 29.9155V26.5069C56.4524 27.0409 56.8614 27.4329 57.3784 27.6886C57.867 27.9158 58.4294 28.0294 59.077 28.0294C60.2871 28.0294 61.2756 27.5465 62.0482 26.5808C62.8208 25.5866 63.2071 24.297 63.2071 22.7006C63.2071 21.1497 62.8435 19.9624 61.9687 18.9001C61.2528 18.0422 60.1791 17.5537 59.0657 17.5025ZM59.9576 24.9844C59.5713 25.5184 59.0429 25.7854 58.3783 25.7854C57.6568 25.7854 57.1057 25.5184 56.7194 24.9844C56.3331 24.5015 56.1399 23.78 56.1399 22.8143C56.1399 21.7746 56.3217 21.0134 56.6796 20.5305C57.0659 19.9965 57.6056 19.7295 58.2987 19.7295C59.0202 19.7295 59.5713 19.9965 59.9576 20.5305C60.3439 21.0645 60.537 21.8258 60.537 22.8143C60.537 23.7346 60.3439 24.4561 59.9576 24.9844Z" fill="white"/>
+<path d="M81.6014 18.4454C80.7095 17.7693 79.8005 17.4171 78.2325 17.4569C76.6419 17.5023 75.4829 17.9455 74.7671 18.9226C74.0456 19.8997 73.6877 21.1723 73.6877 22.7402C73.6877 24.0866 73.9604 25.166 74.5001 25.9954C75.0455 26.8192 75.6931 27.3816 76.4544 27.6827C77.21 27.9895 77.9712 28.052 78.7438 27.8759C79.5165 27.6997 80.1243 27.2566 80.5788 26.5465V27.1885C80.5277 28.0008 80.3345 28.6087 79.9937 29.0177C79.6528 29.4211 79.2722 29.6711 78.8575 29.7563C78.4427 29.8415 78.0223 29.796 77.6076 29.6029C77.1872 29.4154 76.8805 29.1427 76.6816 28.7848H73.915C74.6308 30.9379 75.9147 31.8866 78.2325 32.0571C81.9706 32.3241 83.158 29.1598 83.158 27.4555V22.0926C83.158 20.3201 82.5785 19.1839 81.6014 18.4454ZM80.5049 23.7117C80.4027 24.3082 80.2379 24.7456 80.0107 25.024C79.5335 25.683 78.7836 25.9159 77.7781 25.7284C76.7668 25.5353 76.2612 24.5695 76.2612 22.8198C76.2612 22.0074 76.4089 21.2859 76.7157 20.6496C77.0168 20.019 77.5963 19.7009 78.4598 19.7009C79.0904 19.7009 79.5733 19.9281 79.8971 20.3826C80.2266 20.8371 80.4368 21.3597 80.522 21.9449C80.6129 22.5243 80.6072 23.1152 80.5049 23.7117Z" fill="white"/>
+<path d="M71.4439 18.1785C70.5918 17.7468 69.6146 17.5309 68.5182 17.5309C66.8309 17.5309 65.6379 17.9683 64.9449 18.8489C64.5074 19.4113 64.2631 20.1328 64.2063 21.002H66.7287C66.7912 20.6157 66.9162 20.3089 67.098 20.0873C67.3593 19.7806 67.8024 19.6272 68.4273 19.6272C68.9897 19.6272 69.4101 19.7067 69.6999 19.8601C69.9839 20.0135 70.1316 20.2975 70.1316 20.7066C70.1316 21.0417 69.9441 21.2917 69.5692 21.4508C69.359 21.5417 69.0125 21.6155 68.5239 21.678L67.632 21.786C66.6151 21.9166 65.8425 22.1325 65.3198 22.4279C64.3654 22.979 63.8882 23.8652 63.8882 25.098C63.8882 26.0467 64.1836 26.7796 64.7801 27.2965C65.3709 27.8135 66.1265 28.0294 67.0355 28.0748C72.7392 28.3305 72.6767 25.0696 72.7278 24.3879V20.6327C72.7221 19.434 72.2961 18.616 71.4439 18.1785ZM70.1146 23.8766C70.0975 24.7514 69.8476 25.3536 69.3647 25.6831C68.8818 26.0126 68.3591 26.1774 67.7854 26.1774C67.4218 26.1774 67.1207 26.0751 66.865 25.8763C66.6094 25.6774 66.4901 25.3536 66.4901 24.9048C66.4901 24.4049 66.6946 24.0356 67.1093 23.797C67.3536 23.655 67.7513 23.5357 68.308 23.4391L68.9045 23.3312C69.1999 23.2744 69.4328 23.2176 69.6033 23.1494C69.7737 23.0869 69.9441 23.0017 70.1089 22.8994V23.8766H70.1146Z" fill="white"/>
+<path d="M89.2486 17.4229C87.5386 17.4229 86.2604 17.9512 85.4196 19.0022C84.5788 20.0532 84.1584 21.2973 84.1584 22.7346C84.1584 24.1946 84.5788 25.4444 85.4196 26.4841C86.2604 27.518 87.5386 28.0407 89.2486 28.0407C90.9643 28.0407 92.2368 27.518 93.0833 26.4841C93.9241 25.4444 94.3445 24.1946 94.3445 22.7346C94.3445 21.2973 93.9241 20.0532 93.0833 19.0022C92.2368 17.9512 90.9643 17.4229 89.2486 17.4229ZM90.9984 25.0524C90.5893 25.5921 90.0042 25.8648 89.2429 25.8648C88.4817 25.8648 87.8909 25.5921 87.4818 25.0524C87.0671 24.5127 86.8626 23.7401 86.8626 22.746C86.8626 21.7461 87.0671 20.9792 87.4818 20.4395C87.8909 19.8998 88.4817 19.6328 89.2429 19.6328C90.0042 19.6328 90.5893 19.8998 90.9984 20.4395C91.4074 20.9792 91.6119 21.7461 91.6119 22.746C91.6062 23.7401 91.4017 24.5071 90.9984 25.0524Z" fill="white"/>
+<path d="M46.3499 14.9685C46.2818 6.61746 35.8515 -0.108855 23.0465 -0.000916108C10.2472 0.107023 -0.0695451 7.00376 -0.00137307 15.3548C-0.00137307 15.5707 0.00430794 16.1672 0.00430794 16.2411C0.078161 25.0978 9.20754 32.199 23.3135 32.0854C37.5046 31.9661 46.4352 24.7171 46.3613 15.8548L46.3499 14.9685ZM23.2964 29.4096C10.9914 29.5119 0.958717 23.2117 0.896226 15.3378C0.896226 15.0197 0.913269 14.7072 0.941674 14.3948L1.0837 13.429C1.10642 13.3267 1.14051 13.2245 1.16323 13.1222C1.66884 13.2699 2.03811 13.3722 2.21422 13.4119C7.87818 14.7015 10.1279 16.0422 10.7925 16.5251C11.23 16.1331 11.8038 15.9116 12.3832 15.9116C13.0593 15.9116 13.7012 16.2013 14.1557 16.7069C14.8658 16.2468 15.735 16.1502 16.6099 16.457C17.1837 16.6558 17.6381 17.0194 17.9279 17.5193C18.513 17.3318 19.1777 17.3773 19.8424 17.6613C21.1206 18.2067 21.3024 19.3884 21.2797 20.1382C22.7965 20.1723 24.0179 21.4165 24.0179 22.939C24.0179 23.3026 23.9441 23.6662 23.8077 24.0013C24.2281 24.2115 24.9496 24.5069 25.5802 24.4331C26.1824 24.3592 26.3642 24.1661 26.4039 24.1036C26.4096 24.0979 26.4096 24.0922 26.4153 24.0865L24.7053 22.2005C24.4042 21.9221 24.3304 21.6324 24.5122 21.4335C24.586 21.3483 24.694 21.3029 24.8076 21.3029C25.0064 21.3029 25.1768 21.4449 25.3018 21.5528C26.2278 22.3254 27.3356 23.473 27.347 23.4844L27.3754 23.5128C27.3981 23.5412 27.472 23.598 27.7049 23.6434C27.7844 23.6605 27.8696 23.6662 27.9605 23.6662C28.1366 23.6662 28.5684 23.6377 28.8922 23.3764C28.949 23.3253 29.0115 23.2685 29.074 23.206L29.1422 23.1208C29.4319 22.7515 29.1592 22.3709 29.0967 22.3027L27.0175 19.9621C27.0175 19.9621 26.9323 19.8826 26.8641 19.7917C26.6369 19.4906 26.7391 19.2918 26.8187 19.2009C26.8982 19.1213 26.9948 19.0759 27.1027 19.0759C27.2902 19.0759 27.4606 19.2009 27.6197 19.3315C28.1764 19.7974 28.932 20.5416 29.6648 21.2631L30.125 21.7176C30.1818 21.7517 30.4545 21.9221 30.8408 21.9278C31.1476 21.9278 31.46 21.8255 31.7725 21.6153C32.2042 21.3313 32.4088 20.9847 32.386 20.5586C32.352 20.1837 32.0395 19.8883 32.0395 19.8826L29.1763 17.0023C28.8809 16.7524 28.7956 16.4456 28.9661 16.2354C29.0399 16.1445 29.1592 16.0991 29.2672 16.0934C29.4546 16.0934 29.6137 16.2184 29.7785 16.3547C30.2897 16.7808 31.3691 17.7465 32.9882 19.2293C33.0848 19.3145 33.1416 19.3656 33.1473 19.377C33.1473 19.377 33.4427 19.5815 33.8801 19.5815C34.1699 19.5815 34.4596 19.4906 34.7437 19.3145C35.0561 19.1157 35.2322 18.8316 35.2493 18.5192C35.2777 17.9454 34.8743 17.5875 34.8686 17.5818C34.1074 16.9114 27.5799 11.2077 26.0574 10.0601C25.1825 9.40115 24.694 9.22504 24.1883 9.16254C24.1372 9.15686 24.0804 9.15686 24.0179 9.15118C23.8134 9.15118 23.5578 9.18527 23.3419 9.24208C22.5693 9.45228 21.5524 10.1794 20.8309 10.7475C19.8992 11.4861 19.0243 12.1848 18.1665 12.3723C17.8995 12.4348 17.6041 12.4689 17.303 12.4632C16.4963 12.4632 15.6271 12.236 15.1385 11.9065C14.8658 11.7247 14.667 11.5031 14.5704 11.2702C14.3148 10.6794 14.6954 10.2078 14.8715 10.0261L16.8371 7.90704C16.8485 7.89568 16.8655 7.87864 16.8769 7.86728C16.5928 7.93545 16.3145 8.0093 16.0191 8.09452C15.3089 8.29335 14.5818 8.49219 13.8546 8.49219C13.8546 8.49219 13.8546 8.49219 13.8489 8.49219C13.6046 8.49219 13.3604 8.46946 13.1274 8.45242L12.8945 8.43538C11.8662 8.3672 8.59399 7.53778 5.70804 6.37885C5.71372 6.37317 5.71372 6.37317 5.7194 6.36749L6.51474 5.75394C10.571 2.82254 16.4622 0.947812 23.0408 0.891002C29.8353 0.834192 35.931 2.73165 40.044 5.7653L40.8337 6.37885C40.8848 6.4243 40.936 6.46975 40.9871 6.5152L40.7314 6.6345C38.4534 7.6798 36.323 8.18541 34.2267 8.18541C34.221 8.18541 34.221 8.18541 34.2153 8.18541C32.1986 8.17973 30.1932 7.69685 28.2503 6.74812C28.0287 6.64586 26.0176 5.7369 23.9838 5.73122C23.9327 5.73122 23.8759 5.73122 23.8248 5.73122C20.5866 5.80507 19.172 7.21396 17.6779 8.70238L15.7634 10.793C15.7236 10.8441 15.7066 10.8725 15.7009 10.8896C15.9225 11.1395 16.5019 11.3156 17.1325 11.3156C17.3995 11.3156 17.6722 11.2872 17.9336 11.2247C18.5244 11.0941 19.3311 10.4521 20.1151 9.8329L20.1719 9.78745C21.0411 9.10005 21.9387 8.38425 22.8533 8.1002C23.2567 7.96953 23.6487 7.90704 24.0122 7.90704H24.0179C24.4099 7.90704 24.7167 7.9809 24.9382 8.04907C25.4211 8.19109 25.9722 8.51491 26.7732 9.1171C28.0855 10.1056 32.6871 14.0993 35.3629 16.4399C36.8513 15.7809 40.6235 14.2357 45.2706 13.2017C45.2706 13.2017 45.2706 13.1961 45.2762 13.1847C45.2819 13.2188 45.2933 13.2529 45.299 13.287L45.4353 14.247C45.458 14.4856 45.4694 14.7186 45.4694 14.9572C45.5319 22.8424 35.6072 29.3074 23.2964 29.4096Z" fill="white"/>
+<path d="M21.2458 21.1776C20.9902 21.1776 20.7175 21.2742 20.5357 21.331C20.4107 21.3708 20.3369 21.3992 20.2801 21.3992H20.2403L20.1892 21.3708C20.1494 21.348 20.1324 21.3083 20.121 21.2628C20.0699 21.1833 20.0869 21.064 20.1778 20.8367C20.1835 20.8254 20.4675 20.03 20.2233 19.3483C20.104 19.0472 19.8824 18.7745 19.4791 18.6041C19.2064 18.4848 18.945 18.428 18.7008 18.428C18.1611 18.428 17.8145 18.7007 17.6611 18.8711C17.6214 18.9109 17.5702 18.9563 17.4964 18.9563C17.4737 18.9563 17.3828 18.945 17.343 18.8314C17.326 18.8029 17.3089 18.7689 17.3032 18.712C17.2975 18.5984 17.2691 18.4223 17.2067 18.2405C17.0817 17.9281 16.8317 17.5872 16.3261 17.4281C16.1159 17.3657 15.9114 17.3316 15.7125 17.3316C14.6616 17.3316 14.0878 18.2008 14.0651 18.2348L13.8549 18.5587L13.8492 18.4962C13.8435 18.4962 13.8378 18.5019 13.8378 18.5019C13.7924 18.4905 13.7867 18.1212 13.7867 18.1212C13.7753 18.036 13.7583 17.9565 13.7356 17.8826C13.5424 17.3259 13.0141 16.9396 12.4119 16.9396C11.6336 16.9396 10.9973 17.5758 10.9973 18.3598C10.9973 18.5359 11.0314 18.7064 11.0939 18.8654C11.3098 19.3654 11.8097 19.7233 12.3892 19.7233C12.7527 19.7233 13.0425 19.5017 13.3663 19.3256C13.4572 19.2801 13.5481 19.2745 13.5765 19.3086C13.5992 19.3426 13.6106 19.3824 13.6106 19.4279C13.6276 19.4619 13.639 19.5017 13.6333 19.5528C13.5992 19.746 13.5594 20.1664 13.6901 20.6038C13.8321 21.0242 14.1503 21.4503 14.7979 21.7003C14.9627 21.7627 15.1274 21.7968 15.2865 21.7968C15.5762 21.7968 15.8659 21.6946 16.167 21.4844C16.2409 21.4333 16.292 21.4105 16.3488 21.4105C16.3829 21.4105 16.4397 21.4276 16.4795 21.4673C16.5079 21.5014 16.5193 21.5355 16.5249 21.5753C16.5477 21.6264 16.5533 21.6889 16.542 21.7457C16.5249 21.8536 16.5193 22.0184 16.5704 22.2115C16.6726 22.5126 16.9226 22.8592 17.5248 23.1035C17.735 23.1887 17.9281 23.2284 18.1099 23.2284C18.5133 23.2284 18.786 23.0239 19.0019 22.8251C19.0757 22.7569 19.1439 22.7115 19.2234 22.7115C19.337 22.7115 19.3825 22.791 19.3995 22.8762C19.4336 22.9444 19.4393 23.0353 19.445 23.0807C19.4506 23.3023 19.5075 23.5125 19.587 23.7057C19.871 24.3249 20.5016 24.751 21.2345 24.751C22.2343 24.751 23.0524 23.9386 23.0524 22.9387C23.0524 22.7058 23.0013 22.4786 22.9217 22.274C22.6263 21.6378 21.9901 21.189 21.2458 21.1776Z" fill="white"/>
+</g>
+<defs>
+<clipPath id="clip0_mp_logo">
+<rect width="127.039" height="32.0863" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+    <!-- Título -->
+    <p class="splash-title-text">¡Hola! Te damos la bienvenida a Mercado Pago</p>
+
+    <!-- Dots de carrusel (5 — posición 1 activa) -->
+    <div class="splash-dots-wrap">
+      <span class="sdot active"></span>
+      <span class="sdot"></span>
+      <span class="sdot"></span>
+      <span class="sdot"></span>
+      <span class="sdot"></span>
+    </div>
+
+    <!-- Botones -->
+    <div class="splash-btns-wrap">
+      <button class="splash-btn-primary">Abrir cuenta gratis</button>
+      <button class="splash-btn-secondary" onclick="goTo(2)">Iniciar sesión</button>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════
+       S2 · LOGIN
+  ═══════════════════════════════════════ -->
+  <div class="screen" id="s2">
+    <div class="login-base">
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span class="status-time">9:30</span>
+        <img class="camera-notch"
+          src="https://www.figma.com/api/mcp/asset/89325086-8c52-4ec4-ae96-a47c18d14316"
+          alt="">
+        <div class="status-icons">
+          <img src="https://www.figma.com/api/mcp/asset/808d1349-b1e9-4ac8-a407-2cf7f539ee27" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/be51dad2-1c3b-4bef-a5fd-8c0af660bfad" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/c052120a-652a-4a34-943e-81efaf499ae4" width="8" height="15" alt="">
+        </div>
+      </div>
+      <!-- Nav header -->
+      <div class="header-nav">
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg>
+        </button>
+        <button class="icon-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="8" stroke-width="2.5"/><path d="M12 11v5"/></svg>
+        </button>
+      </div>
+      <!-- Title -->
+      <div class="screen-title">Ingresá tu DNI, e-mail o teléfono</div>
+      <!-- Textfield -->
+      <div class="textfield-wrap">
+        <span class="textfield-label">DNI, e-mail o teléfono</span>
+        <input class="textfield-input" type="text" placeholder="">
+      </div>
+      <div style="height:24px; flex-shrink:0;"></div>
+      <!-- Continuar -->
+      <div class="login-actions">
+        <button class="btn-loud">Continuar</button>
+      </div>
+      <div style="height:24px; flex-shrink:0;"></div>
+      <!-- Divider -->
+      <div class="divider-o">
+        <hr><span>o</span><hr>
+      </div>
+      <div style="height:12px; flex-shrink:0;"></div>
+      <!-- Social buttons -->
+      <div class="social-btns">
+        <!-- Google -->
+        <button class="btn-outline">
+          <svg width="22" height="22" viewBox="0 0 22 22">
+            <path d="M21.64 11.23c0-.72-.06-1.42-.18-2.09H11v3.95h5.97a5.1 5.1 0 01-2.21 3.35v2.78h3.58c2.09-1.93 3.3-4.77 3.3-8z" fill="#4285F4"/>
+            <path d="M11 22c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.28-1.93-6.15-4.53H1.14v2.86C2.95 19.48 6.73 22 11 22z" fill="#34A853"/>
+            <path d="M4.85 13.1A6.6 6.6 0 014.5 11c0-.73.13-1.44.35-2.1V6.04H1.14A11 11 0 000 11c0 1.77.42 3.44 1.14 4.96l3.71-2.86z" fill="#FBBC05"/>
+            <path d="M11 4.36c1.62 0 3.06.56 4.2 1.65l3.16-3.16C16.46 1.09 13.97 0 11 0 6.73 0 2.95 2.52 1.14 6.04l3.71 2.86C5.72 6.29 8.14 4.36 11 4.36z" fill="#EA4335"/>
+          </svg>
+          Ingresar con Google
+        </button>
+        <!-- Passkey -->
+        <button class="btn-outline" onclick="goTo(3)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="8" cy="8" r="4"/>
+            <path d="M2 20c0-3.31 2.69-6 6-6h1"/>
+            <path d="M17 12l-4 4 2 2 4-4"/>
+            <path d="M15 14l2-2 1 1"/>
+          </svg>
+          Ingresar con llave de acceso
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <div class="login-footer">
+        <div class="footer-links">
+          <button class="btn-mute">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Tengo un problema de seguridad
+          </button>
+          <button class="btn-text-quiet">Cómo cuidamos tu privacidad</button>
+        </div>
+        <div class="home-indicator">
+          <div class="home-bar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dimmer directo (misma estructura que S4) -->
+    <div class="dimmer"></div>
+    <!-- Bottom Sheet overlay — solo posiciona el sheet, sin dimmer adentro -->
+    <div class="bs-overlay" id="s2-bs">
+      <div class="bottom-sheet">
+        <div class="bs-drag-wrap">
+          <div class="bs-drag-indicator"></div>
+        </div>
+        <div class="bs-header">
+          <div class="bs-header-row">
+            <h2 class="bs-title">Ingresar con llave de acceso</h2>
+            <button class="bs-close" onclick="hideBS()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <p class="bs-subtitle">Tienes 1 cuenta guardada en este dispositivo</p>
+        </div>
+        <div class="account-row" onclick="goTo(4)">
+          <div class="account-avatar">
+            <img src="https://www.figma.com/api/mcp/asset/d8ddeae2-a507-482a-9e2c-f1cb9a30e7ba" alt="Diego Corona">
+          </div>
+          <div class="account-info">
+            <div class="account-name">Diego Corona</div>
+            <div class="account-email">diego.c***@mp.com</div>
+          </div>
+          <div class="account-chevron">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+          </div>
+        </div>
+        <div style="height:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       S3 · LOGIN + BOTTOM SHEET
+  ═══════════════════════════════════════ -->
+  <div class="screen" id="s3">
+    <!-- Login detrás (dimmed) -->
+    <div class="login-base" style="pointer-events:none;">
+      <div class="status-bar">
+        <span class="status-time">9:30</span>
+        <img class="camera-notch"
+          src="https://www.figma.com/api/mcp/asset/b74effb4-56da-47ad-9179-81982021743a" alt="">
+        <div class="status-icons">
+          <img src="https://www.figma.com/api/mcp/asset/63e6267f-71fc-445c-84f5-941c7cd71f4a" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/01251601-923e-487a-b251-b88f1f9f93d8" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/976b6acd-babb-48b8-bce8-6c7abda74a1a" width="8" height="15" alt="">
+        </div>
+      </div>
+      <div class="header-nav">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg></button>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/></svg></button>
+      </div>
+      <div class="screen-title">Ingresá tu DNI, e-mail o teléfono</div>
+      <div class="textfield-wrap">
+        <span class="textfield-label">DNI, e-mail o teléfono</span>
+        <input class="textfield-input" type="text" placeholder="" disabled>
+      </div>
+      <div style="height:24px;flex-shrink:0;"></div>
+      <div class="login-actions">
+        <button class="btn-loud" style="opacity:0.5;" disabled>Continuar</button>
+      </div>
+      <div style="height:24px;flex-shrink:0;"></div>
+      <div class="divider-o"><hr><span>o</span><hr></div>
+      <div style="height:12px;flex-shrink:0;"></div>
+      <div class="social-btns">
+        <button class="btn-outline" style="opacity:0.5;" disabled>
+          <svg width="22" height="22" viewBox="0 0 22 22"><path d="M21.64 11.23c0-.72-.06-1.42-.18-2.09H11v3.95h5.97a5.1 5.1 0 01-2.21 3.35v2.78h3.58c2.09-1.93 3.3-4.77 3.3-8z" fill="#4285F4"/><path d="M11 22c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.28-1.93-6.15-4.53H1.14v2.86C2.95 19.48 6.73 22 11 22z" fill="#34A853"/><path d="M4.85 13.1A6.6 6.6 0 014.5 11c0-.73.13-1.44.35-2.1V6.04H1.14A11 11 0 000 11c0 1.77.42 3.44 1.14 4.96l3.71-2.86z" fill="#FBBC05"/><path d="M11 4.36c1.62 0 3.06.56 4.2 1.65l3.16-3.16C16.46 1.09 13.97 0 11 0 6.73 0 2.95 2.52 1.14 6.04l3.71 2.86C5.72 6.29 8.14 4.36 11 4.36z" fill="#EA4335"/></svg>
+          Ingresar con Google
+        </button>
+        <button class="btn-outline" style="opacity:0.5;" disabled>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M2 20c0-3.31 2.69-6 6-6h1"/><path d="M17 12l-4 4 2 2 4-4"/><path d="M15 14l2-2 1 1"/></svg>
+          Ingresar con llave de acceso
+        </button>
+      </div>
+    </div>
+    <!-- Dimmer -->
+    <div class="dimmer"></div>
+    <!-- Bottom Sheet -->
+    <div class="bottom-sheet">
+      <div class="bs-drag-wrap">
+        <div class="bs-drag-indicator"></div>
+      </div>
+      <div class="bs-header">
+        <div class="bs-header-row">
+          <h2 class="bs-title">Ingresar con llave de acceso</h2>
+          <button class="bs-close" onclick="goTo(2)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <p class="bs-subtitle">Tienes 1 cuenta guardada en este dispositivo</p>
+      </div>
+      <!-- Account row -->
+      <div class="account-row" onclick="goTo(4)">
+        <div class="account-avatar">
+          <img src="https://www.figma.com/api/mcp/asset/d8ddeae2-a507-482a-9e2c-f1cb9a30e7ba" alt="Diego Corona">
+        </div>
+        <div class="account-info">
+          <div class="account-name">Diego Corona</div>
+          <div class="account-email">diego.c***@mp.com</div>
+        </div>
+        <div class="account-chevron">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+        </div>
+      </div>
+      <div style="height:12px;"></div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       S4 · BIOMETRIC PROMPT
+  ═══════════════════════════════════════ -->
+  <div class="screen" id="s4">
+    <!-- Login detrás (dimmed) -->
+    <div class="login-base" style="pointer-events:none;">
+      <div class="status-bar">
+        <span class="status-time">9:30</span>
+        <img class="camera-notch"
+          src="https://www.figma.com/api/mcp/asset/cbdd96bc-0a43-44c5-9b62-0735cb1d4398" alt="">
+        <div class="status-icons">
+          <img src="https://www.figma.com/api/mcp/asset/dc9b06cf-5f60-45a7-af9b-1e5f38ad4fec" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/9d3b108a-29c3-474a-b73e-ee83cf427395" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/c0e5ceab-cf10-4db7-9059-ccdba5cfb1d1" width="8" height="15" alt="">
+        </div>
+      </div>
+      <div class="header-nav">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg></button>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/></svg></button>
+      </div>
+      <div class="screen-title">Ingresá tu DNI, e-mail o teléfono</div>
+      <div class="textfield-wrap">
+        <span class="textfield-label">DNI, e-mail o teléfono</span>
+        <input class="textfield-input" type="text" disabled>
+      </div>
+      <div style="height:24px;flex-shrink:0;"></div>
+      <div class="login-actions">
+        <button class="btn-loud" style="opacity:0.5;" disabled>Continuar</button>
+      </div>
+      <div style="height:24px;flex-shrink:0;"></div>
+      <div class="divider-o"><hr><span>o</span><hr></div>
+      <div style="height:12px;flex-shrink:0;"></div>
+      <div class="social-btns">
+        <button class="btn-outline" style="opacity:0.5;" disabled>
+          <svg width="22" height="22" viewBox="0 0 22 22"><path d="M21.64 11.23c0-.72-.06-1.42-.18-2.09H11v3.95h5.97a5.1 5.1 0 01-2.21 3.35v2.78h3.58c2.09-1.93 3.3-4.77 3.3-8z" fill="#4285F4"/><path d="M11 22c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.28-1.93-6.15-4.53H1.14v2.86C2.95 19.48 6.73 22 11 22z" fill="#34A853"/><path d="M4.85 13.1A6.6 6.6 0 014.5 11c0-.73.13-1.44.35-2.1V6.04H1.14A11 11 0 000 11c0 1.77.42 3.44 1.14 4.96l3.71-2.86z" fill="#FBBC05"/><path d="M11 4.36c1.62 0 3.06.56 4.2 1.65l3.16-3.16C16.46 1.09 13.97 0 11 0 6.73 0 2.95 2.52 1.14 6.04l3.71 2.86C5.72 6.29 8.14 4.36 11 4.36z" fill="#EA4335"/></svg>
+          Ingresar con Google
+        </button>
+        <button class="btn-outline" style="opacity:0.5;" disabled>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M2 20c0-3.31 2.69-6 6-6h1"/><path d="M17 12l-4 4 2 2 4-4"/><path d="M15 14l2-2 1 1"/></svg>
+          Ingresar con llave de acceso
+        </button>
+      </div>
+    </div>
+    <!-- Dimmer -->
+    <div class="dimmer"></div>
+    <!-- Biometric card -->
+    <div class="biometric-card">
+      <p class="bio-title">Usa tu huella para continuar</p>
+      <div class="bio-icon-wrap">
+        <div class="bio-icon">
+          <!-- Ripple rings -->
+          <span class="bio-ripple"></span>
+          <span class="bio-ripple"></span>
+          <span class="bio-ripple"></span>
+          <!-- Scan line -->
+          <div class="bio-scan-line"></div>
+          <!-- Fingerprint SVG -->
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="#888" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 8C15.16 8 8 15.16 8 24"/>
+            <path d="M24 8C32.84 8 40 15.16 40 24"/>
+            <path d="M12 32c-.5-2.5-.5-5.5 0-8"/>
+            <path d="M36 32c.5-2.5.5-5.5 0-8"/>
+            <path d="M18 14.5C15.5 16.5 14 20 14 24c0 2.5.4 4.8 1 7"/>
+            <path d="M30 14.5C32.5 16.5 34 20 34 24c0 2.5-.4 4.8-1 7"/>
+            <path d="M20 20c-1 1.5-1.5 3.5-1.5 5.5 0 2 .3 4.5.7 6.5"/>
+            <path d="M28 20c1 1.5 1.5 3.5 1.5 5.5 0 2-.3 4.5-.7 6.5"/>
+            <path d="M24 18c-3.3 0-6 2.7-6 6v2"/>
+            <path d="M24 18c3.3 0 6 2.7 6 6v2"/>
+          </svg>
+        </div>
+        <p class="bio-hint">Escanee su huella digital.</p>
+      </div>
+      <button class="bio-cancel">CANCELAR</button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       S5 · HOME
+  ═══════════════════════════════════════ -->
+  <div class="screen" id="s5">
+    <div style="display:flex;flex-direction:column;height:800px;background:var(--color-brand-yellow);">
+
+      <!-- Nav bar (amarillo) -->
+      <div class="home-navbar">
+        <!-- Status bar amarillo -->
+        <div class="home-status">
+          <span class="home-status-time">12:30</span>
+          <div class="home-status-icons">
+            <img src="https://www.figma.com/api/mcp/asset/82c961ee-aaba-42d9-8351-95c1e707cfdb" alt="" width="16" height="16">
+            <img src="https://www.figma.com/api/mcp/asset/88eb5cca-b233-411d-a0c0-fe0e3fa6a9cb" alt="" width="16" height="16">
+            <img src="https://www.figma.com/api/mcp/asset/969eef9e-0664-4874-859f-9a26f2bc53db" alt="" width="18" height="16">
+          </div>
+        </div>
+        <!-- Header row -->
+        <div class="home-header">
+          <div class="home-avatar">
+            <img src="https://www.figma.com/api/mcp/asset/d8ddeae2-a507-482a-9e2c-f1cb9a30e7ba" alt="Diego">
+          </div>
+          <div class="home-greeting">Hola, Diego</div>
+          <button class="home-action-btn">
+            <img src="https://www.figma.com/api/mcp/asset/008787cc-e839-4439-b77e-54ee5140d7fe" alt="Buscar">
+          </button>
+          <button class="home-action-btn">
+            <img src="https://www.figma.com/api/mcp/asset/cd299f1f-a7cc-4aa7-b987-2271737cd03f" alt="Notificaciones">
+          </button>
+        </div>
+      </div>
+
+      <!-- Scrollable content -->
+      <div class="home-content">
+        <!-- Banking section (sobre amarillo) -->
+        <div class="banking-section">
+          <!-- Tabs -->
+          <div class="bank-tabs">
+            <div class="bank-tab active">Saldo</div>
+            <div class="bank-tab">Cofrinhos</div>
+            <div class="bank-tab">Investimentos</div>
+            <div class="bank-tab">Criptos</div>
+          </div>
+          <!-- Card banco -->
+          <div class="bank-card">
+            <div>
+              <div class="bank-balance-row">
+                <div class="bank-balance-left">
+                  <div class="bank-amount">
+                    <span class="bank-amount-currency">R$ 20</span><sup class="bank-amount-sup">,50</sup>
+                  </div>
+                  <div class="bank-eye">
+                    <img src="https://www.figma.com/api/mcp/asset/a07fd1e1-31b0-4604-b4fa-04f5666f79a8" alt="">
+                  </div>
+                </div>
+                <div class="bank-extrato">
+                  Extrato
+                  <img src="https://www.figma.com/api/mcp/asset/339be23d-fc29-4688-bc0c-301fd58eca85" alt="">
+                </div>
+              </div>
+              <div class="bank-cdi" style="margin-top:4px;">↑ 100% do CDI</div>
+            </div>
+            <!-- Banner verde -->
+            <div class="bank-banner">
+              <div class="bank-banner-header">
+                <span class="bank-banner-title">Garanta o melhor rendimento</span>
+                <div class="bank-banner-chevron">
+                  <img src="https://www.figma.com/api/mcp/asset/339be23d-fc29-4688-bc0c-301fd58eca85" alt="">
+                </div>
+              </div>
+              <div class="bank-banner-body">
+                <p class="bank-banner-text">
+                  Deposite R$ 1.000 todo mês para ter <strong>105% do CDI. 🔥</strong>
+                </p>
+                <button class="btn-deposit">Depositar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tarjeta de crédito -->
+        <div class="home-section">
+          <div class="home-section-header">
+            <span class="home-section-title">Tarjeta de crédito</span>
+            <!-- MC logo inline -->
+            <div class="mc-logo" style="margin-left:4px;">
+              <svg width="22" height="16" viewBox="0 0 22 16"><circle cx="8" cy="8" r="8" fill="#EB001B"/><circle cx="14" cy="8" r="8" fill="#F79E1B"/><path d="M11 2.93A8 8 0 0114 8a8 8 0 01-3 5.07A8 8 0 018 8a8 8 0 013-5.07z" fill="#FF5F00"/></svg>
+              <svg width="22" height="16" viewBox="0 0 22 16" style="opacity:0.6;"><ellipse cx="11" cy="8" rx="9" ry="8" fill="none" stroke="#aaa" stroke-width="1.5"/></svg>
+            </div>
+          </div>
+          <div class="credit-banner">
+            <div style="position:absolute;right:16px;top:16px;opacity:0.3;">
+              <svg width="60" height="40" viewBox="0 0 60 40" fill="none"><rect x="2" y="2" width="56" height="36" rx="5" stroke="white" stroke-width="1.5"/><path d="M2 14h56" stroke="white" stroke-width="1.5"/></svg>
+            </div>
+            <p class="credit-banner-title">Gratis y con<br>$ {10.000.000}<br>de límite</p>
+            <p class="credit-banner-sub">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-5"/></svg>
+              Hasta 3 cuotas sin interés en Mercado Libre
+            </p>
+            <button class="btn-pedir">Pedir tarjeta</button>
+          </div>
+        </div>
+
+        <!-- Benefícios -->
+        <div class="benefits-section">
+          <div class="benefits-title">Benefícios</div>
+          <div class="benefits-link">
+            Aproveitar
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+          </div>
+        </div>
+
+        <div style="height:100px;"></div>
+      </div><!-- /home-content -->
+
+      <!-- Tab bar -->
+      <div class="tab-bar-wrap">
+        <!-- Indicator row -->
+        <div class="tab-indicator-row">
+          <div class="tab-indicator-slot"><div class="tab-indicator"></div></div>
+          <div class="tab-indicator-slot"><div class="tab-indicator hidden"></div></div>
+          <div class="tab-indicator-slot"><div class="tab-indicator hidden"></div></div>
+          <div class="tab-indicator-slot"><div class="tab-indicator hidden"></div></div>
+          <div class="tab-indicator-slot"><div class="tab-indicator hidden"></div></div>
+        </div>
+        <!-- Icons row -->
+        <div class="tab-bar">
+          <div class="tab-item">
+            <div class="tab-icon"><img src="https://www.figma.com/api/mcp/asset/54c2d510-9d24-4f99-a511-55ecfe77d5e2" alt="Conta"></div>
+            <span class="tab-label active">Conta</span>
+          </div>
+          <div class="tab-item">
+            <div class="tab-icon"><img src="https://www.figma.com/api/mcp/asset/b033235b-c5e6-45a6-aca1-c920d75164c1" alt="Cartões"></div>
+            <span class="tab-label">Cartões</span>
+          </div>
+          <div class="tab-item-pix" style="position:relative;">
+            <div class="pix-btn">
+              <img src="https://www.figma.com/api/mcp/asset/bb1bc2a6-9253-4e23-8dba-7bd62374bf16" alt="Pix">
+            </div>
+            <span class="tab-label" style="position:relative;z-index:1;">Pix</span>
+          </div>
+          <div class="tab-item">
+            <div class="tab-icon"><img src="https://www.figma.com/api/mcp/asset/66a1d28d-1f9e-4728-a5b6-aa55ec6b2574" alt="Pagamentos"></div>
+            <span class="tab-label">Pagamentos</span>
+          </div>
+          <div class="tab-item">
+            <div class="tab-icon"><img src="https://www.figma.com/api/mcp/asset/9d491a35-b969-4fa4-bf52-b8bf13d0efe0" alt="Mais"></div>
+            <span class="tab-label">Mais</span>
+          </div>
+        </div>
+        <div class="home-indicator-bar"><div></div></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /phone -->
+
+<!-- Navigation dots -->
+<div class="nav-dots">
+  <div class="dot active" onclick="goTo(1)"></div>
+  <div class="dot" onclick="goTo(2)"></div>
+  <div class="dot" onclick="goTo(3)"></div>
+  <div class="dot" onclick="goTo(4)"></div>
+  <div class="dot" onclick="goTo(5)"></div>
+</div>
+
+<script>
+  let cur = 1;
+  let bioTimer = null;
+
+  // S0 · Launch screen — auto-avanza a S1 después de 1.3s
+  (function() {
+    const s0 = document.getElementById('s0');
+    if (!s0) return;
+    setTimeout(function() {
+      s0.classList.add('exit');
+      setTimeout(function() { s0.style.display = 'none'; }, 520);
+    }, 1300);
+  })();
+
+  function s2Dimmer() {
+    return document.querySelector('#s2 .dimmer');
+  }
+
+  function showBS() {
+    // Fade in del dimmer (transition CSS)
+    const dimmer = s2Dimmer();
+    dimmer.offsetHeight; // force reflow
+    dimmer.classList.add('visible');
+
+    // Mostrar overlay y animar la sheet
+    const overlay = document.getElementById('s2-bs');
+    overlay.classList.remove('hiding');
+    overlay.classList.add('visible');
+  }
+
+  function hideBS() {
+    // Fade out del dimmer
+    s2Dimmer().classList.remove('visible');
+
+    // Animar salida de la sheet y ocultar overlay
+    const overlay = document.getElementById('s2-bs');
+    overlay.classList.remove('visible');
+    overlay.classList.add('hiding');
+    setTimeout(() => {
+      overlay.classList.remove('hiding');
+      // Ocultar via CSS: sin 'visible' el display:block no aplica
+    }, 300);
+  }
+
+  function goTo(n) {
+    if (n < 1 || n > 5 || n === cur) return;
+    if (bioTimer) { clearTimeout(bioTimer); bioTimer = null; }
+
+    // Corte instantáneo S2(+BS) → S4 y S3 → S4: ambas pantallas tienen el mismo
+    // fondo dimmeado; el fade normal produce un flash visual innecesario.
+    const instantCut = (cur === 2 && n === 4) || (cur === 3 && n === 4);
+
+    // Limpiar estado de S2 al salir
+    if (cur === 2) {
+      const overlay = document.getElementById('s2-bs');
+      overlay.classList.remove('visible', 'hiding');
+      const dimmer = s2Dimmer();
+      if (instantCut) {
+        // Corte sin transición para que no haya diferencia visual S2→S4
+        dimmer.style.transition = 'none';
+      }
+      dimmer.classList.remove('visible');
+    }
+
+    const prev = document.getElementById('s' + cur);
+    const next = document.getElementById('s' + n);
+
+    if (instantCut) {
+      prev.style.transition = 'none';
+      next.style.transition = 'none';
+    }
+
+    prev.classList.remove('active');
+    document.querySelectorAll('.dot')[cur - 1].classList.remove('active');
+    cur = n;
+    next.classList.add('active');
+    document.querySelectorAll('.dot')[cur - 1].classList.add('active');
+
+    if (instantCut) {
+      // Restaurar transiciones en el siguiente frame
+      requestAnimationFrame(() => {
+        prev.style.transition = '';
+        next.style.transition = '';
+        s2Dimmer().style.transition = '';
+      });
+    }
+
+    if (n === 2) { setTimeout(showBS, 350); }
+    if (n === 4) { bioTimer = setTimeout(() => goTo(5), 2000); }
+  }
+</script>
+
+</body>
+</html>
