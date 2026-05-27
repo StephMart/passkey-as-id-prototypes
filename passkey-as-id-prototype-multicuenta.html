@@ -1118,6 +1118,17 @@
   ═══════════════════════════════════════ -->
   <div class="screen active" id="s1">
 
+    <!-- Status bar overlay -->
+    <div class="status-bar" style="position:absolute;top:0;left:0;right:0;z-index:10;">
+      <span class="status-time" style="color:#fff;">9:30</span>
+      <div class="camera-notch"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#fff"/></svg></div>
+      <div class="status-icons">
+        <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2.4C5.6 2.4 3.4 3.4 1.8 5L0 3.2C2.1 1.2 4.9 0 8 0s5.9 1.2 8 3.2L14.2 5C12.6 3.4 10.4 2.4 8 2.4z" fill="#fff"/><path d="M8 5.6c-1.6 0-3 .6-4.1 1.6L2.1 5.4C3.6 4 5.7 3.2 8 3.2s4.4.8 5.9 2.2L12.1 7.2C11 6.2 9.6 5.6 8 5.6z" fill="#fff"/><path d="M8 8.8c-.8 0-1.6.3-2.1.8L8 12l2.1-2.4C9.6 9.1 8.8 8.8 8 8.8z" fill="#fff"/></svg>
+        <svg width="15" height="12" viewBox="0 0 15 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="#fff"/><rect x="4" y="2" width="3" height="10" rx="1" fill="#fff"/><rect x="8" y="0" width="3" height="12" rx="1" fill="#fff"/><rect x="12" y="0" width="3" height="12" rx="1" fill="#fff" opacity="0.3"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="#fff" stroke-width="1.2" fill="none"/><rect x="1.5" y="2.5" width="16" height="7" rx="2" fill="#fff"/><rect x="23" y="4" width="2" height="4" rx="1" fill="#fff" opacity="0.5"/></svg>
+      </div>
+    </div>
+
     <!-- Fondo: foto + gradientes (sin UI) — nodo 152:27226 -->
     <img class="splash-bg"
       src="https://www.figma.com/api/mcp/asset/f210e8a2-c707-4448-9330-58a9b3cd74a7"
@@ -1651,7 +1662,7 @@
 </div>
 
 <script>
-  let cur = 1;
+  var cur = 1;
   let bioTimer = null;
 
   // S0 · Launch screen — auto-avanza a S1 después de 1.3s
