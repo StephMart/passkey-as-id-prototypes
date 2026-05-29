@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Passkey as ID — Prototipo Multicuenta</title>
+  <title>Passkey as ID — Prototipo Multipasskey</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -633,13 +633,13 @@
       100% { transform: translate(-50%,-50%) scale(2.6);  opacity: 0; }
     }
 
-    #s4.active .bio-ripple:nth-child(1) {
+    #s5.active .bio-ripple:nth-child(1) {
       animation: bioRipple 1.8s cubic-bezier(0.2,0.6,0.4,1) 0.05s forwards;
     }
-    #s4.active .bio-ripple:nth-child(2) {
+    #s5.active .bio-ripple:nth-child(2) {
       animation: bioRipple 1.8s cubic-bezier(0.2,0.6,0.4,1) 0.55s forwards;
     }
-    #s4.active .bio-ripple:nth-child(3) {
+    #s5.active .bio-ripple:nth-child(3) {
       animation: bioRipple 1.8s cubic-bezier(0.2,0.6,0.4,1) 1.05s forwards;
     }
 
@@ -663,7 +663,7 @@
       100% { top: calc(100% - 4px); opacity: 0; }
     }
 
-    #s4.active .bio-scan-line {
+    #s5.active .bio-scan-line {
       animation: bioScanLine 1.5s ease-in-out 0.2s forwards;
     }
 
@@ -674,11 +674,11 @@
       100% { stroke: #42d6c1; filter: drop-shadow(0 0 8px rgba(66,214,193,0.7)); }
     }
 
-    #s4.active .bio-icon > svg {
+    #s5.active .bio-icon > svg {
       animation: bioStroke 1.8s ease-in-out 0.1s forwards;
     }
 
-    /* S3 → S4: solo el bottom sheet se anima; el fondo queda estático */
+    /* S3/S4 → siguiente: solo el componente inferior se anima; el fondo queda estático */
     @keyframes bsSlideOut {
       from { transform: translateY(0); }
       to   { transform: translateY(110%); }
@@ -686,13 +686,16 @@
     #s3.bs-exiting .bottom-sheet {
       animation: bsSlideOut 0.20s cubic-bezier(0.4, 0, 1, 1) forwards;
     }
+    #s4.ps-exiting .passkey-picker-sheet {
+      animation: bsSlideOut 0.20s cubic-bezier(0.4, 0, 1, 1) forwards;
+    }
 
-    /* Card biométrica: misma microanimación que el bottom sheet de cuentas */
+    /* Card/sheet entra como bottom sheet: desde abajo, sin fade */
     @keyframes bioCardIn {
       from { transform: translateY(100%); }
       to   { transform: translateY(0); }
     }
-    #s4.active .biometric-card {
+    #s5.active .biometric-card {
       animation: bioCardIn 0.50s cubic-bezier(0.34, 1.06, 0.64, 1) both;
     }
     /* Suprime animación de entrada cuando se viene de otra pantalla con dimmer */
@@ -723,9 +726,27 @@
     }
 
     /* ═══════════════════════════════════════════
+       S4 · PASSKEY PICKER
+    ════════════════════════════════════════════ */
+    .passkey-picker-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0; right: 0;
+      background: #1c1c2e;
+      border-radius: 24px 24px 0 0;
+      display: flex;
+      flex-direction: column;
+      z-index: 2;
+      overflow: hidden;
+    }
+    #s4.active .passkey-picker-sheet {
+      animation: bioCardIn 0.50s cubic-bezier(0.34, 1.06, 0.64, 1) both;
+    }
+
+    /* ═══════════════════════════════════════════
        S5 · HOME
     ════════════════════════════════════════════ */
-    #s5 { background: var(--color-brand-yellow); }
+    #s6 { background: var(--color-brand-yellow); }
 
     /* Nav bar */
     .home-navbar {
@@ -1446,9 +1467,133 @@
   </div>
 
   <!-- ══════════════════════════════════════
-       S4 · BIOMETRIC PROMPT
+       S4 · PASSKEY PICKER
   ═══════════════════════════════════════ -->
   <div class="screen" id="s4">
+    <!-- Login detrás (dimmed) -->
+    <div class="login-base" style="pointer-events:none;">
+      <div class="status-bar">
+        <span class="status-time">9:30</span>
+        <img class="camera-notch"
+          src="https://www.figma.com/api/mcp/asset/cbdd96bc-0a43-44c5-9b62-0735cb1d4398" alt="">
+        <div class="status-icons">
+          <img src="https://www.figma.com/api/mcp/asset/dc9b06cf-5f60-45a7-af9b-1e5f38ad4fec" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/9d3b108a-29c3-474a-b73e-ee83cf427395" width="17" height="17" alt="">
+          <img src="https://www.figma.com/api/mcp/asset/c0e5ceab-cf10-4db7-9059-ccdba5cfb1d1" width="8" height="15" alt="">
+        </div>
+      </div>
+      <div class="header-nav">
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15,18 9,12 15,6"/></svg></button>
+        <button class="icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/></svg></button>
+      </div>
+      <div class="screen-title">Ingresá tu DNI, e-mail o teléfono</div>
+      <div class="textfield-wrap">
+        <span class="textfield-label">DNI, e-mail o teléfono</span>
+        <input class="textfield-input" type="text" disabled>
+      </div>
+      <div style="height:24px;flex-shrink:0;"></div>
+      <div class="login-actions">
+        <button class="btn-loud" style="opacity:0.5;" disabled>Continuar</button>
+      </div>
+      <div style="height:24px;flex-shrink:0;"></div>
+      <div class="divider-o"><hr><span>o</span><hr></div>
+      <div style="height:12px;flex-shrink:0;"></div>
+      <div class="social-btns">
+        <button class="btn-outline" style="opacity:0.5;" disabled>
+          <svg width="22" height="22" viewBox="0 0 22 22"><path d="M21.64 11.23c0-.72-.06-1.42-.18-2.09H11v3.95h5.97a5.1 5.1 0 01-2.21 3.35v2.78h3.58c2.09-1.93 3.3-4.77 3.3-8z" fill="#4285F4"/><path d="M11 22c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.28-1.93-6.15-4.53H1.14v2.86C2.95 19.48 6.73 22 11 22z" fill="#34A853"/><path d="M4.85 13.1A6.6 6.6 0 014.5 11c0-.73.13-1.44.35-2.1V6.04H1.14A11 11 0 000 11c0 1.77.42 3.44 1.14 4.96l3.71-2.86z" fill="#FBBC05"/><path d="M11 4.36c1.62 0 3.06.56 4.2 1.65l3.16-3.16C16.46 1.09 13.97 0 11 0 6.73 0 2.95 2.52 1.14 6.04l3.71 2.86C5.72 6.29 8.14 4.36 11 4.36z" fill="#EA4335"/></svg>
+          Ingresar con Google
+        </button>
+        <button class="btn-outline" style="opacity:0.5;" disabled>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M2 20c0-3.31 2.69-6 6-6h1"/><path d="M17 12l-4 4 2 2 4-4"/><path d="M15 14l2-2 1 1"/></svg>
+          Ingresar con llave de acceso
+        </button>
+      </div>
+    </div>
+    <!-- Dimmer -->
+    <div class="dimmer"></div>
+    <!-- Passkey picker bottom sheet -->
+    <div class="passkey-picker-sheet">
+      <!-- Cancelar -->
+      <div style="width:100%;display:flex;justify-content:flex-start;padding:18px 20px 8px;">
+        <button onclick="goTo(3)" style="font-size:16px;color:#fff;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;">Cancelar</button>
+      </div>
+      <!-- Título con ícono inline -->
+      <div style="display:flex;align-items:center;gap:10px;padding:4px 20px 10px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <circle cx="8" cy="12" r="5" stroke="#4285F4" stroke-width="2.2" fill="none"/>
+          <circle cx="8" cy="12" r="1.8" fill="#4285F4"/>
+          <line x1="12.5" y1="12" x2="21" y2="12" stroke="#34A853" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="18" y1="12" x2="18" y2="9.5" stroke="#EA4335" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="21" y1="12" x2="21" y2="9.5" stroke="#FBBC05" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        <p style="font-size:22px;font-weight:700;color:#fff;margin:0;line-height:1.2;">Elegir una passkey</p>
+      </div>
+      <!-- Subtítulo -->
+      <p style="font-size:14px;color:rgba(255,255,255,0.55);margin:0 20px 16px;line-height:1.45;">Elige con qué passkey iniciar sesión en Mercado Pago</p>
+      <!-- Separador superior -->
+      <div style="height:1px;background:rgba(255,255,255,0.12);"></div>
+      <!-- Fila 1: Este dispositivo -->
+      <div onclick="goTo(5)" style="display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;">
+        <div style="width:54px;height:54px;background:#2a2a3e;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+            <circle cx="8" cy="12" r="5" stroke="#4285F4" stroke-width="2.2" fill="none"/>
+            <circle cx="8" cy="12" r="1.8" fill="#4285F4"/>
+            <line x1="12.5" y1="12" x2="21" y2="12" stroke="#34A853" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="18" y1="12" x2="18" y2="9.5" stroke="#EA4335" stroke-width="2.2" stroke-linecap="round"/>
+            <line x1="21" y1="12" x2="21" y2="9.5" stroke="#FBBC05" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:15px;font-weight:500;color:#fff;margin:0 0 3px;line-height:1.2;">diego.c***@mp.com</p>
+          <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:0;">Este dispositivo</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+      </div>
+      <!-- Separador -->
+      <div style="height:1px;background:rgba(255,255,255,0.12);margin:0 20px;"></div>
+      <!-- Fila 2: Google Password Manager -->
+      <div onclick="goTo(5)" style="display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;">
+        <div style="width:54px;height:54px;background:#2a2a3e;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg viewBox="0 0 24 24" width="30" height="30">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:15px;font-weight:500;color:#fff;margin:0 0 3px;line-height:1.2;">diego.c***@mp.com</p>
+          <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:0;">Google Password Manager</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+      </div>
+      <!-- Separador -->
+      <div style="height:1px;background:rgba(255,255,255,0.12);margin:0 20px;"></div>
+      <!-- Fila 3: Pixel 9 Pro -->
+      <div onclick="goTo(5)" style="display:flex;align-items:center;gap:14px;padding:14px 20px;cursor:pointer;">
+        <div style="width:54px;height:54px;background:#2a2a3e;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+          </svg>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <p style="font-size:15px;font-weight:500;color:#fff;margin:0 0 3px;line-height:1.2;">diego.c***@mp.com</p>
+          <p style="font-size:13px;color:rgba(255,255,255,0.5);margin:0;">Pixel 9 Pro</p>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9,18 15,12 9,6"/></svg>
+      </div>
+      <!-- Bottom padding -->
+      <div style="height:28px;"></div>
+    </div>
+    <!-- Home indicator -->
+    <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:108px;height:4px;background:rgba(255,255,255,0.25);border-radius:9999px;z-index:3;"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       S5 · BIOMETRIC PROMPT
+  ═══════════════════════════════════════ -->
+  <div class="screen" id="s5">
     <!-- Login detrás (dimmed) -->
     <div class="login-base" style="pointer-events:none;">
       <div class="status-bar">
@@ -1494,7 +1639,7 @@
     <div class="biometric-card">
       <!-- Top row: solo Cancelar (sin "Introducir contraseña") -->
       <div style="width:100%;display:flex;justify-content:flex-start;align-items:center;padding:18px 20px 4px;">
-        <button class="bio-cancel" style="font-size:16px;font-weight:400;text-transform:none;letter-spacing:0;" onclick="goTo(3)">Cancelar</button>
+        <button class="bio-cancel" style="font-size:16px;font-weight:400;text-transform:none;letter-spacing:0;" onclick="goTo(4)">Cancelar</button>
       </div>
       <!-- Íconos solapados: Google PM (detrás-izq) + Google G (delante-der) -->
       <div style="display:flex;align-items:center;justify-content:center;margin:16px 0 8px;">
@@ -1551,9 +1696,9 @@
   </div>
 
   <!-- ══════════════════════════════════════
-       S5 · HOME
+       S6 · HOME
   ═══════════════════════════════════════ -->
-  <div class="screen" id="s5">
+  <div class="screen" id="s6">
     <div style="display:flex;flex-direction:column;height:800px;background:var(--color-brand-yellow);">
 
       <!-- Nav bar (amarillo) -->
@@ -1714,10 +1859,12 @@
   <div class="dot" onclick="goTo(3)"></div>
   <div class="dot" onclick="goTo(4)"></div>
   <div class="dot" onclick="goTo(5)"></div>
+  <div class="dot" onclick="goTo(6)"></div>
 </div>
 
 <script>
   var cur = 1;
+  var TOTAL = 6;
   let bioTimer = null;
   let bsTimer = null;
   let paused = false;
@@ -1729,7 +1876,7 @@
     } else {
       var active = document.querySelector('.screen.active');
       var n = active ? parseInt(active.id.replace('s','')) : 0;
-      if (n === 4) { bioTimer = setTimeout(() => goTo(5), 2000); }
+      if (n === 5) { bioTimer = setTimeout(() => goTo(6), 2000); }
     }
   };
 
@@ -1776,14 +1923,16 @@
   }
 
   function goTo(n) {
-    if (n < 1 || n > 5 || n === cur) return;
+    if (n < 1 || n > 6 || n === cur) return;
     if (bioTimer) { clearTimeout(bioTimer); bioTimer = null; }
     if (bsTimer)  { clearTimeout(bsTimer);  bsTimer  = null; }
 
     const prev = document.getElementById('s' + cur);
     const next = document.getElementById('s' + n);
 
-    // ── S3 → S4: corte instantáneo de fondo + card sube como bottom sheet ──
+    // ── S3 → S4: corte instantáneo de fondo + passkey picker sube como bottom sheet ──
+    // Login + dimmer son idénticos en S3 y S4 → el corte es imperceptible.
+    // El account sheet desaparece al instante; el picker sube limpio desde abajo.
     if (n === 4 && cur === 3) {
       document.body.classList.add('no-transitions');
       void next.offsetWidth;
@@ -1793,7 +1942,43 @@
       cur = n;
       next.classList.add('active');
       document.querySelectorAll('.dot')[cur - 1].classList.add('active');
-      if (!paused) { bioTimer = setTimeout(() => goTo(5), 2000); }
+
+      const sheet = next.querySelector('.passkey-picker-sheet');
+      if (sheet) {
+        sheet.style.transform = 'translateY(100%)';
+        sheet.style.animation  = 'none';          // evita auto-start antes del rAF
+        next.classList.remove('instant-cut');
+        void sheet.offsetWidth;
+      }
+
+      requestAnimationFrame(() => {
+        document.body.classList.remove('no-transitions');
+        requestAnimationFrame(() => {
+          if (sheet) {
+            void sheet.offsetWidth;
+            sheet.style.animation = '';            // bioCardIn arranca limpio
+          }
+        });
+      });
+
+      if (sheet) setTimeout(() => { sheet.style.transform = ''; }, 560);
+
+      return;
+    }
+
+    // ── S4 → S5: corte instantáneo de fondo + card biométrica sube como bottom sheet ──
+    // Login + dimmer son idénticos en S4 y S5 → el corte es imperceptible.
+    // El passkey picker desaparece al instante; el card sube limpio desde abajo.
+    if (n === 5 && cur === 4) {
+      document.body.classList.add('no-transitions');
+      void next.offsetWidth;
+
+      prev.classList.remove('active');
+      document.querySelectorAll('.dot')[cur - 1].classList.remove('active');
+      cur = n;
+      next.classList.add('active');
+      document.querySelectorAll('.dot')[cur - 1].classList.add('active');
+      if (!paused) { bioTimer = setTimeout(() => goTo(6), 2000); }
 
       const card = next.querySelector('.biometric-card');
       if (card) {
@@ -1824,7 +2009,7 @@
       s2Dimmer().classList.remove('visible');
     }
 
-    // ── S2 → S4: corte instantáneo de fondo + card sube como bottom sheet ──
+    // ── S2 → S4: corte instantáneo de fondo + passkey picker sube como bottom sheet ──
     if (n === 4 && cur === 2) {
       document.body.classList.add('no-transitions');
       void next.offsetWidth;
@@ -1833,24 +2018,23 @@
       cur = n;
       next.classList.add('active');
       document.querySelectorAll('.dot')[cur - 1].classList.add('active');
-      if (!paused) { bioTimer = setTimeout(() => goTo(5), 2000); }
 
-      const card2 = next.querySelector('.biometric-card');
-      if (card2) {
-        card2.style.transform = 'translateY(100%)';
-        card2.style.animation  = 'none';
+      const sheet2 = next.querySelector('.passkey-picker-sheet');
+      if (sheet2) {
+        sheet2.style.transform = 'translateY(100%)';
+        sheet2.style.animation  = 'none';
         next.classList.remove('instant-cut');
-        void card2.offsetWidth;
+        void sheet2.offsetWidth;
       }
 
       requestAnimationFrame(() => {
         document.body.classList.remove('no-transitions');
         requestAnimationFrame(() => {
-          if (card2) { void card2.offsetWidth; card2.style.animation = ''; }
+          if (sheet2) { void sheet2.offsetWidth; sheet2.style.animation = ''; }
         });
       });
 
-      if (card2) setTimeout(() => { card2.style.transform = ''; }, 560);
+      if (sheet2) setTimeout(() => { sheet2.style.transform = ''; }, 560);
       return;
     }
 
@@ -1883,7 +2067,7 @@
     }
 
     if (n === 2) { bsTimer = setTimeout(showBS, 350); }
-    if (n === 4 && !paused) { bioTimer = setTimeout(() => goTo(5), 2000); }
+    if (n === 5 && !paused) { bioTimer = setTimeout(() => goTo(6), 2000); }
   }
 </script>
 

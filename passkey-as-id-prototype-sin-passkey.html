@@ -724,12 +724,25 @@
   var currentScreen = 1;
   let splashTimer = null;
   let androidTimer = null;
+  let paused = false;
+
+  window.setPaused = function(state) {
+    paused = state;
+    if (paused) {
+      if (splashTimer)  { clearTimeout(splashTimer);  splashTimer  = null; }
+      if (androidTimer) { clearTimeout(androidTimer); androidTimer = null; }
+    } else {
+      var active = document.querySelector('.screen.active');
+      var n = active ? parseInt(active.id.replace('s','')) : 0;
+      if (n === 1) startSplash();
+    }
+  };
   let otpFilled = false;
 
   /* ── SPLASH AUTO-ADVANCE ── */
   function startSplash() {
     clearTimeout(splashTimer);
-    splashTimer = setTimeout(() => goTo(2), 1600);
+    if (!paused) splashTimer = setTimeout(() => goTo(2), 1600);
   }
 
   /* ── TYPE EMAIL ── */
@@ -777,7 +790,7 @@
     s.classList.add('fp-success');
     document.getElementById('fpLabel').textContent = 'Clave de acceso guardada';
     clearTimeout(androidTimer);
-    androidTimer = setTimeout(() => goTo(8), 1400);
+    if (!paused) androidTimer = setTimeout(() => goTo(8), 1400);
   }
 
   /* ── GOTO ── */

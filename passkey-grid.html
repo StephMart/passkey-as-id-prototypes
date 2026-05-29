@@ -249,6 +249,18 @@
       font-weight: 500;
     }
 
+    .btn-pause {
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .btn-pause.is-paused {
+      background: #1e1e3a;
+      color: var(--text-primary);
+      border-color: rgba(255,255,255,0.18);
+    }
+
     .btn-nav {
       width: 34px;
       height: 34px;
@@ -478,6 +490,16 @@
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6a5 5 0 1 0 1-3M1 1v3h3"/></svg>
         Restart
       </button>
+      <button class="btn btn-pause" id="btnPause" onclick="togglePause()">
+        <svg id="pauseIcon" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="1.5" width="3" height="9" rx="0.5"/>
+          <rect x="7" y="1.5" width="3" height="9" rx="0.5"/>
+        </svg>
+        <svg id="playIcon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style="display:none">
+          <polygon points="2,1 11,6 2,11"/>
+        </svg>
+        <span id="pauseLabel">Pausar</span>
+      </button>
       <button class="btn btn-nav" onclick="prevScreen()" title="Pantalla anterior">
         <svg viewBox="0 0 14 14"><polyline points="9,2 4,7 9,12"/></svg>
       </button>
@@ -509,35 +531,53 @@
       {
         id: 1,
         eyebrow: 'Prototipo 1',
-        title: 'Happy Path',
-        desc: 'Cuenta con Passkey',
+        title: 'Cuenta con Passkey',
+        desc: '',
         src: 'passkey-as-id-prototype.html',
-        breadcrumbLeft: 'Prototipo 1 — Happy Path',
+        breadcrumbLeft: 'Prototipo 1',
         breadcrumbRight: 'Cuenta con Passkey'
       },
       {
         id: 2,
         eyebrow: 'Prototipo 2',
-        title: 'Happy Path',
-        desc: 'Múltiples cuentas con Passkey',
+        title: 'Múltiples cuentas con Passkey',
+        desc: '',
         src: 'passkey-as-id-prototype-multicuenta.html',
-        breadcrumbLeft: 'Prototipo 2 — Happy Path',
+        breadcrumbLeft: 'Prototipo 2',
         breadcrumbRight: 'Múltiples cuentas con Passkey'
       },
       {
         id: 3,
         eyebrow: 'Prototipo 3',
-        title: 'Sin Passkey',
-        desc: 'Enroll en Login',
+        title: 'Cuenta con MultiPasskey',
+        desc: '',
+        src: 'passkey-as-id-prototype-multipasskey.html',
+        breadcrumbLeft: 'Prototipo 3',
+        breadcrumbRight: 'Cuenta con MultiPasskey'
+      },
+      {
+        id: 4,
+        eyebrow: 'Prototipo 4',
+        title: 'Cuenta sin Passkey',
+        desc: '',
         src: 'passkey-as-id-prototype-sin-passkey.html',
-        breadcrumbLeft: 'Prototipo 3 — Sin Passkey',
-        breadcrumbRight: 'Enroll en Login'
-      }
+        breadcrumbLeft: 'Prototipo 4',
+        breadcrumbRight: 'Cuenta sin Passkey'
+      },
+      {
+        id: 5,
+        eyebrow: 'Prototipo 5',
+        title: 'Google + Passkey',
+        desc: 'Google Sign-In como opción primaria en Credential Manager, passkey como alternativa secundaria.',
+        src: 'passkey-google-coexistence.html',
+        breadcrumbLeft: 'Prototipo 5',
+        breadcrumbRight: 'Google + Passkey'
+      },
     ];
 
     // Natural prototype dimensions
     const PROTO_W = 360;
-    const PROTO_H = 800; // phone frame height
+    const PROTO_H = 840; // phone frame height (800px screen + 40px flow-label overhead)
 
     let currentIndex = 0;
     const iframe   = document.getElementById('protoIframe');
@@ -639,16 +679,65 @@
       breadcrumb.innerHTML = `${p.breadcrumbLeft} · <strong>${p.breadcrumbRight}</strong>`;
 
       // Load iframe y resetear a pantalla inicial al terminar de cargar
+      resetPause();
       scaler.classList.add('is-loading');
       iframe.onload = () => {
         scaler.classList.remove('is-loading');
         resizePhone();
         resetIframeToStart();
+        applyMode();
       };
       iframe.src = p.src;
     }
 
+    // Modo manual: el usuario navega con las flechas.
+    // Los timers internos del prototipo (bioTimer, etc.) corren libremente.
+    function applyMode() {
+      try {
+        if (iframe.contentWindow && iframe.contentWindow.setPaused) {
+          iframe.contentWindow.setPaused(false);
+        }
+      } catch(e) {}
+    }
+
+    // ── Pause / Resume ──
+    let isPaused = false;
+
+    function togglePause() {
+      isPaused = !isPaused;
+      try {
+        if (iframe.contentWindow && iframe.contentWindow.setPaused) {
+          iframe.contentWindow.setPaused(isPaused);
+        }
+      } catch(e) {}
+      updatePauseBtn();
+    }
+
+    function updatePauseBtn() {
+      const btn   = document.getElementById('btnPause');
+      const label = document.getElementById('pauseLabel');
+      const pauseIcon = document.getElementById('pauseIcon');
+      const playIcon  = document.getElementById('playIcon');
+      if (isPaused) {
+        btn.classList.add('is-paused');
+        pauseIcon.style.display = 'none';
+        playIcon.style.display  = 'block';
+        label.textContent = 'Reanudar';
+      } else {
+        btn.classList.remove('is-paused');
+        pauseIcon.style.display = 'block';
+        playIcon.style.display  = 'none';
+        label.textContent = 'Pausar';
+      }
+    }
+
+    function resetPause() {
+      isPaused = false;
+      updatePauseBtn();
+    }
+
     function restartProto() {
+      resetPause();
       resetIframeToStart();
     }
 
