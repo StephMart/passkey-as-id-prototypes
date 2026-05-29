@@ -146,6 +146,35 @@
     @keyframes slideDownSheet { from { transform:translateY(0); } to { transform:translateY(110%); } }
     .bs-overlay.hiding .cm-sheet { animation:slideDownSheet 0.25s cubic-bezier(0.4,0,1,1) forwards; }
 
+    /* ══════════════════ PASSKEY SHEET (S2) ══════════════════ */
+    .pk-sheet {
+      position:absolute; bottom:0; left:0; right:0;
+      background:#fff;
+      border-radius:20px 20px 0 0;
+      z-index:2; overflow:hidden;
+      transform:translateY(100%);
+    }
+    .bs-overlay.visible .pk-sheet  { animation:slideUpSheet   0.5s  cubic-bezier(0.34,1.06,0.64,1) forwards; }
+    .bs-overlay.hiding  .pk-sheet  { animation:slideDownSheet 0.25s cubic-bezier(0.4,0,1,1)        forwards; }
+
+    .pk-drag-wrap { display:flex; justify-content:center; padding:12px 0 4px; }
+    .pk-drag-indicator { width:32px; height:4px; background:rgba(0,0,0,0.2); border-radius:9999px; }
+    .pk-header { padding:8px 16px 0; }
+    .pk-header-row { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:4px; }
+    .pk-title { font-size:18px; font-weight:700; color:var(--color-text-primary); line-height:1.3; }
+    .pk-close { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:50%; background:var(--color-bg-quiet); flex-shrink:0; }
+    .pk-close svg { width:16px; height:16px; }
+    .pk-subtitle { font-size:13px; color:var(--color-text-secondary); line-height:1.4; margin-bottom:12px; }
+    .pk-account-row { display:flex; align-items:center; gap:12px; padding:14px 16px; border-top:1px solid rgba(0,0,0,0.08); cursor:pointer; transition:background .15s; }
+    .pk-account-row:active { background:rgba(72,80,229,0.08); }
+    .pk-account-avatar { width:40px; height:40px; border-radius:50%; overflow:hidden; flex-shrink:0; background:#ddd; }
+    .pk-account-avatar img { width:100%; height:100%; object-fit:cover; }
+    .pk-account-info { flex:1; min-width:0; }
+    .pk-account-name { font-size:14px; font-weight:600; color:var(--color-text-primary); }
+    .pk-account-email { font-size:12px; color:var(--color-text-secondary); margin-top:1px; }
+    .pk-chevron { width:18px; height:18px; flex-shrink:0; color:var(--color-text-secondary); }
+    .pk-cancel { width:100%; padding:16px; font-size:15px; font-weight:500; color:var(--color-accent); background:none; border-top:1px solid rgba(0,0,0,0.08); }
+
     /* ══════════════════ ANDROID CM SHEET ══════════════════ */
     .cm-sheet {
       position:absolute; bottom:0; left:0; right:0;
@@ -371,7 +400,7 @@
           <svg width="22" height="22" viewBox="0 0 22 22"><path d="M21.64 11.23c0-.72-.06-1.42-.18-2.09H11v3.95h5.97a5.1 5.1 0 01-2.21 3.35v2.78h3.58c2.09-1.93 3.3-4.77 3.3-8z" fill="#4285F4"/><path d="M11 22c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.99.66-2.26 1.06-3.71 1.06-2.86 0-5.28-1.93-6.15-4.53H1.14v2.86C2.95 19.48 6.73 22 11 22z" fill="#34A853"/><path d="M4.85 13.1A6.6 6.6 0 014.5 11c0-.73.13-1.44.35-2.1V6.04H1.14A11 11 0 000 11c0 1.77.42 3.44 1.14 4.96l3.71-2.86z" fill="#FBBC05"/><path d="M11 4.36c1.62 0 3.06.56 4.2 1.65l3.16-3.16C16.46 1.09 13.97 0 11 0 6.73 0 2.95 2.52 1.14 6.04l3.71 2.86C5.72 6.29 8.14 4.36 11 4.36z" fill="#EA4335"/></svg>
           Ingresar con Google
         </button>
-        <button class="btn-outline">
+        <button class="btn-outline" onclick="showPasskeyBS()">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-primary)" stroke-width="1.8" stroke-linecap="round"><circle cx="8" cy="8" r="4"/><path d="M2 20c0-3.31 2.69-6 6-6h1"/><path d="M17 12l-4 4 2 2 4-4"/><path d="M15 14l2-2 1 1"/></svg>
           Ingresar con passkey
         </button>
@@ -425,6 +454,32 @@
           <svg class="cm-chevron" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><polyline points="9,18 15,12 9,6"/></svg>
         </div>
         <button class="cm-cancel" onclick="hideBS()">Cancelar</button>
+      </div>
+    </div>
+    <!-- Passkey Sheet overlay -->
+    <div class="bs-overlay" id="s2-passkey-bs">
+      <div class="pk-sheet">
+        <div class="pk-drag-wrap"><div class="pk-drag-indicator"></div></div>
+        <div class="pk-header">
+          <div class="pk-header-row">
+            <h2 class="pk-title">Ingresar con llave de acceso</h2>
+            <button class="pk-close" onclick="hidePasskeyBS()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <p class="pk-subtitle">Elige con qué cuenta querés iniciar sesión</p>
+        </div>
+        <div class="pk-account-row" onclick="hidePasskeyBS(); selectPasskey();">
+          <div class="pk-account-avatar">
+            <img src="https://www.figma.com/api/mcp/asset/d8ddeae2-a507-482a-9e2c-f1cb9a30e7ba" alt="Diego Corona">
+          </div>
+          <div class="pk-account-info">
+            <div class="pk-account-name">Diego Corona</div>
+            <div class="pk-account-email">diego.c***@mp.com</div>
+          </div>
+          <svg class="pk-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9,18 15,12 9,6"/></svg>
+        </div>
+        <button class="pk-cancel" onclick="hidePasskeyBS()">Cancelar</button>
       </div>
     </div>
   </div>
@@ -759,6 +814,26 @@
     setTimeout(function() { overlay.classList.remove('hiding'); }, 300);
   }
   window.hideBS = hideBS;
+
+  /* ── Show/hide Passkey sheet overlay en S2 ── */
+  function showPasskeyBS() {
+    var dimmer  = document.getElementById('s2-dimmer');
+    var overlay = document.getElementById('s2-passkey-bs');
+    dimmer.offsetHeight;
+    dimmer.classList.add('visible');
+    overlay.classList.remove('hiding');
+    overlay.classList.add('visible');
+  }
+  window.showPasskeyBS = showPasskeyBS;
+
+  function hidePasskeyBS() {
+    document.getElementById('s2-dimmer').classList.remove('visible');
+    var overlay = document.getElementById('s2-passkey-bs');
+    overlay.classList.remove('visible');
+    overlay.classList.add('hiding');
+    setTimeout(function() { overlay.classList.remove('hiding'); }, 300);
+  }
+  window.hidePasskeyBS = hidePasskeyBS;
 
   /* ── Select Google account ── */
   window.selectGoogle = function(email, grad) {
